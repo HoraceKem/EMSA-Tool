@@ -16,8 +16,10 @@
 |       ls        |               (function name) list out                |
 |      mfov       |      the index the mFoV (multiple field of view)      |
 |    multibeam    |        specifically designed for multibeam EM         |
+|      param      |          adjustable parameters in algorithms          |
 |       pct       |              percent ranging in [0, 100]              |
 |       pts       | a tuple containing the locations of keypoint features |
 |      save       |                save the data into file                |
 |   singlebeam    |        specifically designed for singlebeam EM        |
+|      thres      |                 in short of threshold                 |
 |    tilespec     |             the specification of one tile             |
