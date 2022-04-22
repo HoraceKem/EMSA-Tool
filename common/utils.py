@@ -1,9 +1,8 @@
 import os
 import logging
-import sys
 import glob
 import json
-import time
+import termcolor
 from pymage_size import get_image_size
 
 
@@ -149,7 +148,7 @@ def index_tilespec_singlebeam(tilespecs: list) -> dict:
 
 def parse_layer_range(layer_range: str) -> list:
     """
-    Parse the layer range in string format and return a list containing all the layers (int).
+    Parse the layer range in string format and return a list containing all the layers (int)
     :param layer_range: a string containing multipart of layer ranges, e.g. '1-3, 8-9' == '1, 2, 3, 8, 9'
     :type layer_range: str
     :return: a sorted list of all the layers
@@ -187,3 +186,57 @@ def get_occupied_space_pct(absolute_path: str) -> float:
     disk = os.statvfs(absolute_path)
     percent = (disk.f_blocks - disk.f_bfree) * 100 / (disk.f_blocks - disk.f_bfree + disk.f_bavail)
     return percent
+
+
+def to_red(content: str) -> str:
+    """
+    Change the text to red
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "red", attrs=["bold"])
+
+
+def to_green(content: str) -> str:
+    """
+    Change the text to green
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "green", attrs=["bold"])
+
+
+def to_blue(content: str) -> str:
+    """
+    Change the text to blue
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "blue", attrs=["bold"])
+
+
+def to_cyan(content: str) -> str:
+    """
+    Change the text to cyan
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "cyan", attrs=["bold"])
+
+
+def to_yellow(content: str) -> str:
+    """
+    Change the text to yellow
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "yellow", attrs=["bold"])
+
+
+def to_magenta(content: str) -> str:
+    """
+    Change the text to magenta
+    :param content:
+    :return:
+    """
+    return termcolor.colored(content, "magenta", attrs=["bold"])
