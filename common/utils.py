@@ -1,10 +1,52 @@
 import os
-import cv2
+import logging
 import sys
 import glob
 import json
 import time
 from pymage_size import get_image_size
+
+
+class LogController(object):
+    def __init__(self, module_name: str, log_folder_path: str):
+        """
+        Initialize a log controller according to the module name and log folder path
+        :param module_name: the name of the module, in order to collect logs into different files
+        :type module_name: str
+        :param log_folder_path: the absolute path of the log folder
+        :type log_folder_path: str
+        """
+        # Set the logger
+        self.logger = logging.getLogger(__name__)
+        log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
+
+        # Set the StreamHandler to print logs in the console
+        log_handler_console = logging.StreamHandler()
+        log_handler_console.setFormatter(log_formatter)
+        log_handler_console.setLevel(logging.DEBUG)
+
+        # Set the FileHandler to output the logs to files
+        create_dir(log_folder_path)
+        log_file_basename = '%s.txt' % module_name
+        log_file_path = os.path.join(log_folder_path, log_file_basename)
+        log_handler_file = logging.FileHandler(log_file_path)
+        log_handler_file.setFormatter(log_formatter)
+        log_handler_file.setLevel(logging.INFO)
+
+        self.logger.addHandler(log_handler_console)
+        self.logger.addHandler(log_handler_file)
+
+    def debug(self, message: str):
+        self.logger.debug(message)
+
+    def info(self, message: str):
+        self.logger.info(message)
+
+    def warning(self, message: str):
+        self.logger.warning(message)
+
+    def error(self, message: str):
+        self.logger.error(message)
 
 
 def create_dir(folder_path: str):
@@ -76,101 +118,72 @@ def load_json_file(json_file_path: str):
     return json_contents
 
 
-def index_tilespec_multi(tile_specification):
-    index = {}
-    for ts in tile_specification:
-        # mfov = str(ts["mfov"])
-        mfov = ts["mfov"]
-        if mfov not in index.keys():
-            index[mfov] = {}
-        # index[mfov][str(ts["tile_index"])] = ts
-        index[mfov][ts["tile_index"]] = ts
-    return index
-
-
-def index_tilespec_single(tile_specification):
-    index = {}
-    for ts in tile_specification:
-        index[ts["tile_index"]] = ts
-    return index
-
-
-def wait_after_file(filename, timeout_seconds):
-    if timeout_seconds > 0:
-        cur_time = time.time()
-        mod_time = os.path.getmtime(filename)
-        end_wait_time = mod_time + timeout_seconds
-        while cur_time < end_wait_time:
-            print("Waiting for file: {}".format(filename))
-            cur_time = time.time()
-            mod_time = os.path.getmtime(filename)
-            end_wait_time = mod_time + timeout_seconds
-            if cur_time < end_wait_time:
-                time.sleep(end_wait_time - cur_time)
-
-
-def parse_range(s):
-    result = set()
-    if s is not None and len(s) != 0:
-        for part in s.split(','):
-            x = part.split('-')
-            result.update(range(int(x[0]), int(x[-1]) + 1))
-    return sorted(result)
-
-
-def write_list_to_file(file_name, lst):
-    with open(file_name, 'w') as out_file:
-        for item in lst:
-            out_file.write("%s\n" % item)
-
-
-def read_layer_from_file(tiles_spec_fname):
-    layer = None
-    with open(tiles_spec_fname, 'r') as data_file:
-        data = json.load(data_file)
-    for tile in data:
-        if tile['layer'] is None:
-            print("Error reading layer in one of the tiles in: {0}".format(tiles_spec_fname))
-            sys.exit(1)
-        if layer is None:
-            layer = tile['layer']
-        if layer != tile['layer']:
-            print("Error when reading tiles from {0} found inconsistent layers numbers: {1} and {2}".format(
-                tiles_spec_fname, layer, tile['layer']))
-            sys.exit(1)
-    if layer is None:
-        print("Error reading layers file: {0}. No layers found.".format(tiles_spec_fname))
-        sys.exit(1)
-    return int(layer)
-
-
-def save_h5(h5f, data, target):
+def index_tilespec_multibeam(tilespecs: list) -> dict:
     """
-    :param h5f:
-    :param data:
-    :param target:
+    Given a section tilespecs returns a dictionary of [mfov][tile_index] to the tile's tilespec
+    :param tilespecs: a list of tile specifications of multibeam data
+    :type tilespecs: list
+    :return: a dictionary containing tilespecs
+    """
+    indexed_tilespecs = {}
+    for tilespec in tilespecs:
+        mfov = tilespec["mfov"]
+        if mfov not in indexed_tilespecs.keys():
+            indexed_tilespecs[mfov] = {}
+        indexed_tilespecs[mfov][tilespec["tile_index"]] = tilespec
+    return indexed_tilespecs
+
+
+def index_tilespec_singlebeam(tilespecs: list) -> dict:
+    """
+    Given a section tilespecs returns a dictionary of [tile_index] to the tile's tilespec
+    :param tilespecs: a list of tile specifications of singlebeam data
+    :type tilespecs: list
+    :return: a dictionary containing tilespecs
+    """
+    indexed_tilespecs = {}
+    for tilespec in tilespecs:
+        indexed_tilespecs[tilespec["tile_index"]] = tilespec
+    return indexed_tilespecs
+
+
+def parse_layer_range(layer_range: str) -> list:
+    """
+    Parse the layer range in string format and return a list containing all the layers (int).
+    :param layer_range: a string containing multipart of layer ranges, e.g. '1-3, 8-9' == '1, 2, 3, 8, 9'
+    :type layer_range: str
+    :return: a sorted list of all the layers
+    """
+    layers = set()
+    if layer_range is not None and len(layer_range) != 0:
+        for part in layer_range.split(','):
+            layer_num = part.split('-')
+            layers.update(set(range(int(layer_num[0]), int(layer_num[-1]) + 1)))
+    return sorted(layers)
+
+
+def save_list(file_path: str, to_be_saved_list: list):
+    """
+    Save a list to text file
+    :param file_path:
+    :type file_path: str
+    :param to_be_saved_list:
+    :type to_be_saved_list: list
     :return:
     """
-    shape_list = list(data.shape)
-    if not h5f.__contains__(target):
-        shape_list[0] = 1
-        dataset = h5f.create_dataset(target, data=data, maxshape=tuple(shape_list), chunks=True)
-        return
-    else:
-        dataset = h5f[target]
-    len_old = dataset.shape[0]
-    len_new = len_old + data.shape[0]
-    shape_list[0] = len_new
-    dataset.resize(tuple(shape_list))
-    dataset[len_old:len_new] = data
+    with open(file_path, 'w') as f:
+        for item in to_be_saved_list:
+            f.write("%s\n" % item)
+        f.close()
 
 
-def disk_stat(path):
-    disk = os.statvfs(path)
+def get_occupied_space_pct(absolute_path: str) -> float:
+    """
+    Get the occupied storage space in the percent format. Used to spy on the storage device's status
+    :param absolute_path:
+    :type absolute_path: str
+    :return: a float percent of occupied space
+    """
+    disk = os.statvfs(absolute_path)
     percent = (disk.f_blocks - disk.f_bfree) * 100 / (disk.f_blocks - disk.f_bfree + disk.f_bavail)
     return percent
-
-
-if __name__ == '__main__':
-    filepaths = ls_absolute_paths('/Users/gehongyu/硕士资料/CECTSS')
-    print(filepaths)
