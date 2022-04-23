@@ -22,7 +22,7 @@ class LogController(object):
         # Set the StreamHandler to print logs in the console
         log_handler_console = logging.StreamHandler()
         log_handler_console.setFormatter(log_formatter)
-        log_handler_console.setLevel(logging.DEBUG)
+        log_handler_console.setLevel(logging.INFO)
 
         # Set the FileHandler to output the logs to files
         create_dir(log_folder_path)
@@ -30,7 +30,7 @@ class LogController(object):
         log_file_path = os.path.join(log_folder_path, log_file_basename)
         log_handler_file = logging.FileHandler(log_file_path)
         log_handler_file.setFormatter(log_formatter)
-        log_handler_file.setLevel(logging.INFO)
+        log_handler_file.setLevel(logging.DEBUG)
 
         self.logger.addHandler(log_handler_console)
         self.logger.addHandler(log_handler_file)
