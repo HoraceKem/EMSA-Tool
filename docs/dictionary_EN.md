@@ -5,6 +5,7 @@
 |    basename     |            basename of one file or folder             |
 |       des       |    ndarray of the descriptors of keypoint features    |
 |      dims       |      a tuple of image dimensions (height, width)      |
+|     EM_type     |                singlebeam or multibeam                |
 |        f        |           file, used in 'with open () as f'           |
 |    file_path    |               absolute path to one file               |
 |  file_basename  |                 basename of one file                  |
@@ -15,6 +16,7 @@
 |      layer      |             the index of section (number)             |
 |       ls        |               (function name) list out                |
 |      mfov       |      the index the mFoV (multiple field of view)      |
+|    modelspec    |     the specification on the transformation model     |
 |    multibeam    |        specifically designed for multibeam EM         |
 |      param      |          adjustable parameters in algorithms          |
 |       pct       |              percent ranging in [0, 100]              |

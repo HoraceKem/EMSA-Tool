@@ -1,6 +1,5 @@
 import os
 import logging
-import glob
 import json
 import termcolor
 from pymage_size import get_image_size
@@ -75,20 +74,21 @@ def ls_absolute_paths(folder_path: str) -> list:
     return absolute_paths
 
 
-def ls_img_file_paths_singlebeam(folder_path: str) -> list:
+def ls_sub_folder_paths(folder_path: str) -> list:
     """
-    List out the singlebeam image file paths in the folder and filter out the failed-taken images
+    List out all the sub-folders' absolute path in the folder
     :param folder_path: the path to a folder
     :type folder_path: str
-    :return: a sorted list of absolute paths of successfully-taken singlebeam images in the folder
+    :return: a sorted list of absolute paths in the folder
     """
-    img_file_paths = glob.glob(os.path.join(folder_path, 'Tile_r*-c*_*.tif'))
-    img_file_paths_filtered = []
-    for img_file_path in img_file_paths:
-        fail_string = 'failed'
-        if fail_string not in img_file_path:
-            img_file_paths_filtered.append(img_file_path)
-    return img_file_paths_filtered
+    basenames = os.listdir(folder_path)
+    basenames.sort()
+    sub_folder_paths = []
+    for basename in basenames:
+        absolute_path = os.path.join(folder_path, basename)
+        if os.path.isdir(absolute_path):
+            sub_folder_paths.append(absolute_path)
+    return sub_folder_paths
 
 
 def read_img_dimensions(img_file_path: str) -> tuple:
