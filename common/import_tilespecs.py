@@ -68,13 +68,13 @@ def parse_init_coord_singlebeam(section_folder_path: str, overlap: float = 0.1) 
     x = []
     y = []
     for img_file_path in img_file_paths:
-        img_size = utils.read_img_dimensions(img_file_path)
+        img_dims = utils.read_img_dimensions(img_file_path)
         img_base_name = os.path.basename(img_file_path)
         filename_match = re.match('Tile_r([0-9]+)-c([0-9]+)_.*[.]tif+', img_base_name)
         row = int(filename_match.group(1))
         col = int(filename_match.group(2))
-        offset_y = (row - 1) * img_size[0] * (1.0 - overlap)
-        offset_x = (col - 1) * img_size[1] * (1.0 - overlap)
+        offset_y = (row - 1) * img_dims[0] * (1.0 - overlap)
+        offset_x = (col - 1) * img_dims[1] * (1.0 - overlap)
 
         x.append(int(offset_y))
         y.append(int(offset_x))
@@ -91,12 +91,12 @@ def parse_section_singlebeam(section_folder_path: str) -> list:
     section_info = []
 
     for i, img_file_path in enumerate(img_file_paths):
-        img_size = utils.read_img_dimensions(img_file_path)
+        img_dims = utils.read_img_dimensions(img_file_path)
         tile_info = {
             "img_file_path": img_file_path,
             "img_base_name": os.path.basename(img_file_path),
-            "width": img_size[1],
-            "height": img_size[0],
+            "width": img_dims[1],
+            "height": img_dims[0],
             "tx": offset_x[i],
             "ty": offset_y[i],
             "mfov": i,
@@ -117,12 +117,12 @@ def parse_section_multibeam(section_folder_path: str) -> list:
     section_info = []
 
     for i, img_file_path in enumerate(img_file_paths):
-        img_size = utils.read_img_dimensions(img_file_path)
+        img_dims = utils.read_img_dimensions(img_file_path)
         tile_info = {
             "img_file_path": img_file_path,
             "img_base_name": os.path.basename(img_file_path),
-            "width": img_size[1],
-            "height": img_size[0],
+            "width": img_dims[1],
+            "height": img_dims[0],
             "tx": offset_x[i],
             "ty": offset_y[i],
             "mfov": int(os.path.basename(img_file_path).split('_')[1]),
