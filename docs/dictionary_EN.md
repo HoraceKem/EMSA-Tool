@@ -3,6 +3,7 @@
 |:---------------:|:-----------------------------------------------------:|
 |  absolute_path  |          absolute path to one file or folder          |
 |    basename     |            basename of one file or folder             |
+|      coord      |                      coordinates                      |
 |       des       |    ndarray of the descriptors of keypoint features    |
 |      dims       |      a tuple of image dimensions (height, width)      |
 |     EM_type     |                singlebeam or multibeam                |
@@ -21,7 +22,9 @@
 |      param      |          adjustable parameters in algorithms          |
 |       pct       |              percent ranging in [0, 100]              |
 |       pts       | a tuple containing the locations of keypoint features |
+|  relative_path  |          relative path to one file or folder          |
 |      save       |                save the data into file                |
+|     section     |   commonly including the information of one section   |
 |   singlebeam    |        specifically designed for singlebeam EM        |
 |      thres      |                 in short of threshold                 |
 |    tilespec     |             the specification of one tile             |
