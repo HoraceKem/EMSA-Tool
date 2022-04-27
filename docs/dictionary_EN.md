@@ -12,6 +12,7 @@
 |  file_basename  |                 basename of one file                  |
 |   folder_path   |              absolute path to one folder              |
 | folder_basename |                basename of one folder                 |
+|       h5        |       the file format HDF5, using package h5py        |
 |       img       |            the grayscale image NumPy array            |
 |     img_BGR     |               the BGR image NumPy array               |
 |      layer      |             the index of section (number)             |

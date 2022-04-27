@@ -1,0 +1,76 @@
+{
+    "sift": {
+        "nfeatures":0,
+        "nOctaveLayers": 3,
+        "contrastThreshold": 0.04,
+        "edgeThreshold": 10,
+        "sigma": 1.6
+    },
+    "surf": {
+        "hessianThreshold": 200,
+        "nOctaves": 4,
+        "nOctaveLayers": 3,
+        "extended": false,
+        "upright": false
+    },
+    "orb": {
+        "nfeatures": 50000,
+        "scaleFactor": 1.2,
+        "nlevels": 8,
+        "edgeThreshold": 31,
+        "firstLevel": 0,
+        "WTA_K": 2,
+        "scoreType": 0,
+        "patchSize": 31,
+        "fastThreshold": 20
+    },
+    "surf_cuda": {
+        "hessianThreshold": 200,
+        "nOctaves": 4,
+        "nOctaveLayers": 2,
+        "extended": false,
+        "keypointsRatio": 0.01,
+        "upright": false
+    },
+    "orb_cuda": {
+        "nfeatures": 50000,
+        "scaleFactor": 1.2,
+        "nlevels": 8,
+        "edgeThreshold": 31,
+        "firstLevel": 0,
+        "WTA_K": 2,
+        "scoreType": 0,
+        "patchSize": 31,
+        "fastThreshold": 20,
+        "blurForDescriptor": false
+    },
+    "akaze": {
+        "descriptor_type": 2,
+        "descriptor_size": 0,
+        "descriptor_channels": 3,
+        "threshold": 0.001,
+        "nOctaves": 4,
+        "nOctaveLayers": 4,
+        "diffusivity": 1
+    },
+    "brisk": {
+        "thresh": 30,
+        "octaves": 3,
+        "patternScale": 1.0
+    },
+    "flann": {
+        "threshold": 0.92
+    },
+    "bf": {
+        "threshold": 0.92
+    },
+    "ransac": {
+        "model_index": 1,
+        "iterations": 1000,
+        "max_epsilon": 100.0,
+        "min_inlier_ratio": 0.01,
+        "min_num_inlier": 7,
+        "max_trust": 5,
+        "del_delta": 0.35
+    }
+}

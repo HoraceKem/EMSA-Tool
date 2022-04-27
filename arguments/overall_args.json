@@ -1,0 +1,39 @@
+{
+	"base":
+	{
+        "workspace":"default_workspace",
+		"sample_dir":["/media/sem-lab/Hub1/RB98_imgs_1", "/media/sem-lab/Hub2/RB98_imgs_2"],
+		"split_tile_size": 0,
+		"stitching": 0,
+		"sample_name": "RB98"
+	},
+	"pre_process":
+	{
+		"down_sampling":1,
+		"invert":0,
+		"histogram_match":0,
+		"histogram_match_file":"/home/sem-lab/Documents/ZHANG-LAB/001/Tile_r1-c1_001.tif",
+		"skip_layers":"1-165, 167-4392"
+	},
+	"stitching":
+	{
+		"workspace_2d_postfix":"2d"
+	},
+	"alignment":
+	{
+		"workspace_3d_postfix":"3d",
+		"output_3d_postfix":"final_results"
+	},
+	"render":
+	{
+		"render_dir_postfix":"rendered/8nm",
+		"from_x":0,
+		"from_y":0,
+		"to_x":-1,
+		"to_y":-1,
+		"tile_size":0,
+		"file_type":"png",
+		"invert_image":0,
+		"scale":1
+	}
+}

@@ -4,7 +4,7 @@ import re
 import decimal
 import utils
 
-args = utils.load_json_file('../conf.json')
+args = utils.load_json_file('../arguments/overall_args.json')
 utils.create_dir(args["base"]["workspace"])
 log_controller = utils.LogController('common', os.path.join(args["base"]["workspace"], 'log'))
 

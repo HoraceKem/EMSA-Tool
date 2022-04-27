@@ -4,7 +4,7 @@ import numpy as np
 __all__ = ['bf', 'flann']
 
 
-def bf(des1: np.ndarray, des2: np.ndarray, params: dict) -> list:
+def bf(des1: np.ndarray, des2: np.ndarray, args: dict) -> list:
     """
     Brute force match and return the matches.
     The distance type is decided by the type of descriptors.
@@ -12,7 +12,7 @@ def bf(des1: np.ndarray, des2: np.ndarray, params: dict) -> list:
     :param des1:
     :type des1: np.ndarray
     :param des2:
-    :param params:
+    :param args:
     :type des2: np.ndarray
     :return: a list of matches
     """
@@ -27,7 +27,7 @@ def bf(des1: np.ndarray, des2: np.ndarray, params: dict) -> list:
     good_matches = []
 
     for m, n in all_matches:
-        if m.distance < params["bf"]["threshold"] * n.distance:
+        if m.distance < args["bf"]["threshold"] * n.distance:
             good_matches.append([m])
     if len(good_matches) <= 2:
         return ['NO_MATCH']
@@ -35,13 +35,13 @@ def bf(des1: np.ndarray, des2: np.ndarray, params: dict) -> list:
         return good_matches
 
 
-def flann(des1, des2, params):
+def flann(des1, des2, args):
     """
     FLANN-based match and return the matches.
     :param des1:
     :type des1: np.ndarray
     :param des2:
-    :param params:
+    :param args:
     :type des2: np.ndarray
     :return: a list of matches
     """
@@ -55,7 +55,7 @@ def flann(des1, des2, params):
     all_matches = matcher.knnMatch(des1, des2, k=2)
     good_matches = []
     for m, n in all_matches:
-        if m.distance < params["flann"]["threshold"] * n.distance:
+        if m.distance < args["flann"]["threshold"] * n.distance:
             good_matches.append([m])
     if len(good_matches) <= 2:
         return ['NO_MATCH']
