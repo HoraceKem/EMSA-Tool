@@ -4,6 +4,10 @@ import re
 import decimal
 import utils
 
+args = utils.load_json_file('../conf.json')
+utils.create_dir(args["base"]["workspace"])
+log_controller = utils.LogController('common', os.path.join(args["base"]["workspace"], 'log'))
+
 
 def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:
     """
@@ -23,12 +27,14 @@ def parse_init_coord_multibeam(section_folder_path: str) -> [list, list, list]:
     :type section_folder_path: str
     :return:
     """
+    log_controller.debug('Parsing initial coordinates to tilespec...')
     img_dict = {}
     img_file_paths = []
     x = []
     y = []
     coord_file_path = os.path.join(section_folder_path, "full_image_coordinates.txt")
     with open(coord_file_path, 'r') as csvfile:
+        log_controller.debug('Loaded coordinates file {}'.format(coord_file_path))
         data_reader = csv.reader(csvfile, delimiter='\t')
         for row in data_reader:
             img_relative_path = row[0].replace('\\', os.sep)
@@ -64,6 +70,8 @@ def parse_init_coord_singlebeam(section_folder_path: str, overlap: float = 0.1) 
     :param overlap: the initial overlapping rate between two tiles
     :return:
     """
+    log_controller.debug('Parsing initial coordinates to tilespec...')
+    log_controller.debug('Overlap rate: {}%'.format(overlap * 100))
     img_file_paths = utils.ls_img_file_paths_singlebeam(section_folder_path)
     x = []
     y = []
@@ -87,6 +95,7 @@ def parse_section_singlebeam(section_folder_path: str) -> list:
     :param section_folder_path: the absolute path to the section folder
     :return:
     """
+    log_controller.debug('Parsing section in {}'.format(section_folder_path))
     img_file_paths, offset_x, offset_y = parse_init_coord_singlebeam(section_folder_path)
     section_info = []
 
@@ -104,6 +113,7 @@ def parse_section_singlebeam(section_folder_path: str) -> list:
         }
         section_info.append(tile_info)
     section_info.sort(key=img_base_name_decimal_key)
+    log_controller.debug('Parsed {} tiles in section folder {}'.format(len(section_info), section_folder_path))
     return section_info
 
 
@@ -113,6 +123,7 @@ def parse_section_multibeam(section_folder_path: str) -> list:
     :param section_folder_path: the absolute path to the section folder
     :return:
     """
+    log_controller.debug('Parsing section in %s'.format(section_folder_path))
     img_file_paths, offset_x, offset_y = parse_init_coord_multibeam(section_folder_path)
     section_info = []
 
@@ -130,4 +141,5 @@ def parse_section_multibeam(section_folder_path: str) -> list:
         }
         section_info.append(tile_info)
     section_info.sort(key=img_base_name_decimal_key)
+    log_controller.debug('Parsed {} tiles in section folder {}'.format(len(section_info), section_folder_path))
     return section_info
