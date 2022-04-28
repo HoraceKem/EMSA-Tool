@@ -4,7 +4,7 @@
 |  absolute_path  |          absolute path to one file or folder          |
 |    basename     |            basename of one file or folder             |
 |      coord      |                      coordinates                      |
-|       des       |    ndarray of the descriptors of keypoint features    |
+|      descs      |    ndarray of the descriptors of keypoint features    |
 |      dims       |      a tuple of image dimensions (height, width)      |
 |     EM_type     |                singlebeam or multibeam                |
 |        f        |           file, used in 'with open () as f'           |

@@ -1,6 +1,4 @@
 import cv2
-import utils
-import os
 import numpy as np
 
 __all__ = ['sift', 'surf', 'orb', 'akaze', 'brisk', 'surf_cuda', 'orb_cuda']
