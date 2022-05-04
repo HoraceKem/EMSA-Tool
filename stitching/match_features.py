@@ -1,9 +1,9 @@
 import numpy as np
 import h5py
-import ransac
 import json
 import os
 import common.utils as utils
+import common.ransac as ransac
 from common.trans_models import Transforms
 from common.bounding_box import BoundingBox
 import common.keypoint_features_matching as matching

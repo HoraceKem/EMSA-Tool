@@ -123,32 +123,25 @@ def load_json_file(json_file_path: str):
     return json_contents
 
 
-def index_tilespec_multibeam(tilespecs: list) -> dict:
+def index_tilespec(tilespecs: list, EM_type: str) -> dict:
     """
     Given a section tilespecs returns a dictionary of [mfov][tile_index] to the tile's tilespec
+    :param EM_type:
     :param tilespecs: a list of tile specifications of multibeam data
     :type tilespecs: list
     :return: a dictionary containing tilespecs
     """
     indexed_tilespecs = {}
     for tilespec in tilespecs:
-        mfov = tilespec["mfov"]
-        if mfov not in indexed_tilespecs.keys():
-            indexed_tilespecs[mfov] = {}
-        indexed_tilespecs[mfov][tilespec["tile_index"]] = tilespec
-    return indexed_tilespecs
-
-
-def index_tilespec_singlebeam(tilespecs: list) -> dict:
-    """
-    Given a section tilespecs returns a dictionary of [tile_index] to the tile's tilespec
-    :param tilespecs: a list of tile specifications of singlebeam data
-    :type tilespecs: list
-    :return: a dictionary containing tilespecs
-    """
-    indexed_tilespecs = {}
-    for tilespec in tilespecs:
-        indexed_tilespecs[tilespec["tile_index"]] = tilespec
+        if EM_type == 'singlebeam':
+            indexed_tilespecs[tilespec["tile_index"]] = tilespec
+        elif EM_type == 'multibeam':
+            mfov = tilespec["mfov"]
+            if mfov not in indexed_tilespecs.keys():
+                indexed_tilespecs[mfov] = {}
+            indexed_tilespecs[mfov][tilespec["tile_index"]] = tilespec
+        else:
+            raise AssertionError('Wrong EM type.')
     return indexed_tilespecs
 
 
