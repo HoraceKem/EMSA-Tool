@@ -4,9 +4,10 @@ import re
 import decimal
 import utils
 
-args = utils.load_json_file('../arguments/overall_args.json')
-utils.create_dir(args["base"]["workspace"])
-log_controller = utils.LogController('common', os.path.join(args["base"]["workspace"], 'log'))
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
 
 
 def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:

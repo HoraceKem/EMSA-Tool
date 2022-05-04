@@ -1,11 +1,15 @@
 import numpy as np
 import copy
+import os
+import common.utils as utils
 from common.trans_models import Transforms
 from scipy.special import comb
 
 
-def array_to_string(arr):
-    return arr.tostring()
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
 
 
 def tri_area(p1, p2, p3):
@@ -217,8 +221,8 @@ def ransac(matches, target_model_type, iterations, epsilon, min_inlier_ratio, mi
     proposed_model = Transforms.create(target_model_type)
 
     if proposed_model.MIN_MATCHES_NUM > matches.shape[1]:
-        print("RANSAC cannot find a good model because "
-              "the number of initial matches ({}) is too small.".format(matches.shape[1]))
+        log_controller.warning(utils.to_red("RANSAC cannot find a good model because the number "
+                                            "of initial matches ({}) is too small.".format(matches.shape[1])))
         return None, None, None
 
     # Avoiding repeated indices permutations using a dictionary
@@ -309,13 +313,13 @@ def filter_matches(matches, target_model_type, iterations, epsilon, min_inlier_r
 
     # Apply RANSAC
     # print "Filtering {} matches".format(matches.shape[1])
-    print("pre-ransac matches count: {}".format(matches.shape[1]))
+    log_controller.debug("pre-ransac matches count: {}".format(matches.shape[1]))
     inliers_mask, model, _ = ransac(matches, target_model_type, iterations, epsilon, min_inlier_ratio,
                                     min_num_inlier, det_delta, max_stretch)
     if inliers_mask is None:
-        print("post-ransac matches count: 0")
+        log_controller.debug("post-ransac matches count: 0")
     else:
-        print("post-ransac matches count: {}".format(inliers_mask.shape[0]))
+        log_controller.debug("post-ransac matches count: {}".format(inliers_mask.shape[0]))
 
     # Apply further filtering
     if inliers_mask is not None:
@@ -324,7 +328,7 @@ def filter_matches(matches, target_model_type, iterations, epsilon, min_inlier_r
         new_model, filtered_inliers_mask, mean_dists = filter_after_ransac(inliers, model, max_trust, min_num_inlier)
         filtered_matches = np.array([inliers[0][filtered_inliers_mask], inliers[1][filtered_inliers_mask]])
     if filtered_matches is None:
-        print("post-ransac-filter matches count: 0")
+        log_controller.debug("post-ransac-filter matches count: 0")
     else:
-        print("post-ransac-filter matches count: {}".format(filtered_matches.shape[1]))
+        log_controller.debug("post-ransac-filter matches count: {}".format(filtered_matches.shape[1]))
     return new_model, filtered_matches

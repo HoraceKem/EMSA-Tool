@@ -2,42 +2,85 @@ import numpy as np
 import h5py
 import ransac
 import json
+import os
+import common.utils as utils
 from common.trans_models import Transforms
 from common.bounding_box import BoundingBox
 import common.keypoint_features_matching as matching
 
 
-def load_features(h5_file_path):
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
+
+
+def load_features(h5_file_path: str) -> [str, np.array, np.array]:
+    """
+    Load features from h5py file
+    :param h5_file_path:
+    :type h5_file_path: str
+    :return:
+    """
+    log_controller.debug('Loading features from file: {}'.format(h5_file_path))
     with h5py.File(h5_file_path, 'r') as hf:
         image_url = str(hf["imageUrl"][...]).replace('b\'', '').replace('\'', '')
+        log_controller.debug('The features are extracted from: {}'.format(image_url))
         locations = hf["pts/locations"][...]
         descriptors = hf["descs"][...]
     return image_url, locations, descriptors
 
 
-def get_tile_specification_transformation(tile_specification):
-    transforms = tile_specification["transforms"]
+def get_tile_specification_transformation(tilespec: dict):
+    """
+    Get transform in 'trans_models' from tile specification
+    :param tilespec:
+    :return:
+    """
+    transforms = tilespec["transforms"]
     transform = Transforms.from_tilespec(transforms[0])
     return transform
 
 
-def match_and_save(features1_path, features2_path, _ts1, _ts2, save_match_path, parameters, arguments):
+def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dict,
+                   save_match_path: str, parameters: dict, matching_type: str):
+    """
+    Given two features file(h5py format), match them and save the matched into json file
+    :param features1_path:
+    :param features2_path:
+    :param ts1:
+    :param ts2:
+    :param save_match_path:
+    :param parameters:
+    :param matching_type:
+    :return:
+    """
+    log_controller.debug('Matching the features from {} and {} using {}'.format(features1_path, features2_path,
+                                                                                matching_type))
+    if matching_type not in matching.__dict__:
+        log_controller.error(utils.to_red('Unexpected matching type. '
+                                          'Please refer to common/keypoint_features_matching.py'))
+        raise TypeError('matching type')
     image1_path, pts1, des1 = load_features(features1_path)
     image2_path, pts2, des2 = load_features(features2_path)
-    cur_bbox1 = BoundingBox.fromList(_ts1["bbox"])
-    cur_bbox2 = BoundingBox.fromList(_ts2["bbox"])
+    cur_bbox1 = BoundingBox.fromList(ts1["bbox"])
+    cur_bbox2 = BoundingBox.fromList(ts2["bbox"])
     overlap_bbox = cur_bbox1.intersect(cur_bbox2).expand(offset=50)
-    tilespec1_transform = get_tile_specification_transformation(_ts1)
-    tilespec2_transform = get_tile_specification_transformation(_ts2)
+    log_controller.debug('Overlapping bounding box: {}'.format(overlap_bbox))
+    tilespec1_transform = get_tile_specification_transformation(ts1)
+    tilespec2_transform = get_tile_specification_transformation(ts2)
     features_mask1 = overlap_bbox.contains(tilespec1_transform.apply(pts1))
     features_mask2 = overlap_bbox.contains(tilespec2_transform.apply(pts2))
 
     pts1 = pts1[features_mask1]
     pts2 = pts2[features_mask2]
+    log_controller.debug('Image 1 features number: {}'.format(len(pts1)))
+    log_controller.debug('Image 2 features number: {}'.format(len(pts2)))
     des1 = des1[features_mask1]
     des2 = des2[features_mask2]
-    good_matches = matching.__dict__[arguments.match](des1, des2, parameters)
+    good_matches = matching.__dict__[matching_type](des1, des2, parameters)
     if good_matches == ['NO_MATCH']:
+        log_controller.warning(utils.to_red('No match!'))
         filtered_matches = [[], []]
         model_json = []
     else:
@@ -45,7 +88,7 @@ def match_and_save(features1_path, features2_path, _ts1, _ts2, save_match_path, 
             np.array([pts1[[m[0].queryIdx for m in good_matches]]][0]),
             np.array([pts2[[m[0].trainIdx for m in good_matches]]][0])
         ])
-
+        log_controller.debug('Detected {} matches'.format(match_points))
         model, filtered_matches, _, _ = ransac.filter_matches(match_points,
                                                               parameters["ransac"]["model_index"],
                                                               parameters["ransac"]["iterations"],
@@ -57,8 +100,10 @@ def match_and_save(features1_path, features2_path, _ts1, _ts2, save_match_path, 
         model_json = []
         if model is None:
             filtered_matches = [[], []]
+            log_controller.warning(utils.to_red('No fit model!'))
         else:
             model_json = model.to_modelspec()
+            log_controller.debug('Fit model: {}'.format(model_json))
 
     out_data = [{
         "mipmapLevel": 0,
@@ -75,6 +120,6 @@ def match_and_save(features1_path, features2_path, _ts1, _ts2, save_match_path, 
         "model": model_json
     }]
 
-    print("Saving matches into {}".format(save_match_path))
+    log_controller.debug("Saving matches into {}".format(save_match_path))
     with open(save_match_path, 'w') as out:
         json.dump(out_data, out, sort_keys=True, indent=4)

@@ -7,7 +7,7 @@ from pymage_size import get_image_size
 
 
 class LogController(object):
-    def __init__(self, module_name: str, log_folder_path: str):
+    def __init__(self, module_name: str, log_folder_path: str, running_mode: str):
         """
         Initialize a log controller according to the module name and log folder path
         :param module_name: the name of the module, in order to collect logs into different files
@@ -22,7 +22,12 @@ class LogController(object):
         # Set the StreamHandler to print logs in the console
         log_handler_console = logging.StreamHandler()
         log_handler_console.setFormatter(log_formatter)
-        log_handler_console.setLevel(logging.INFO)
+        if running_mode == 'release':
+            log_handler_console.setLevel(logging.INFO)
+        elif running_mode == 'debug':
+            log_handler_console.setLevel(logging.DEBUG)
+        else:
+            raise AssertionError('Unexpected running mode: {}'.format(running_mode))
 
         # Set the FileHandler to output the logs to files
         create_dir(log_folder_path)
