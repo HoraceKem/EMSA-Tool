@@ -2,9 +2,7 @@ import os
 import numpy as np
 import h5py
 import json
-import sys
 import cv2
-import glob
 import common.trans_models as models
 from common import ransac
 from common import utils
@@ -76,67 +74,66 @@ def analyze_mfov(mfov_ts, features_dir):
 
     mfov_num = int(mfov_ts.values()[0]["mfov"])
     mfov_string = ("%06d" % mfov_num)
-    mfov_feature_files = utils.ls_absolute_paths(os.path.join(features_dir, mfov_string))
-    if len(mfov_feature_files) < TILES_PER_MFOV:
+    mfov_feature_file_paths = utils.ls_absolute_paths(os.path.join(features_dir, mfov_string))
+    if len(mfov_feature_file_paths) < TILES_PER_MFOV:
         log_controller.warning(utils.to_red("The number of feature files in directory: {} is smaller than {}".format(
             os.path.join(os.path.join(features_dir, mfov_string)), TILES_PER_MFOV)))
 
     # load each features file, and concatenate all to single lists
     for tile_num in mfov_ts.keys():
-        # for feature_file in mfov_feature_files:
-        feature_file = [fname for fname in mfov_feature_files if
-                        "_{}_{}_".format(mfov_string, "%03d" % tile_num) in fname.split('sifts_')[1]][0]
+        # for feature_file in mfov_feature_file_paths:
+        feature_file = [file_path for file_path in mfov_feature_file_paths if
+                        "_{}_{}_".format(mfov_string, "%03d" % tile_num) in file_path.split('sifts_')[1]][0]
         # Get the correct tile tilespec from the section tilespec (convert to int to remove leading zeros)
         # tile_num = int(feature_file.split('sifts_')[1].split('_')[2])
         (tmp_pts, tmp_descs) = load_features(feature_file, mfov_ts[tile_num])
         if type(tmp_descs) is not list:
-            # concatentate the results
+            # concatenate the results
             all_points = np.append(all_points, tmp_pts, axis=0)
             all_descs.append(tmp_descs)
     all_points = np.array(all_points)
     return all_points, np.vstack(all_descs)
 
 
-def generatematches_crosscheck_cv2(allpoints1, allpoints2, alldescs1, alldescs2, actual_params):
+def generatematches_crosscheck_cv2(all_pts1, all_pts2, all_descs1, all_descs2):
     matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-    matches = matcher.knnMatch(np.array(alldescs1), np.array(alldescs2), k=1)
+    matches = matcher.knnMatch(np.array(all_descs1), np.array(all_descs2), k=1)
     goodmatches = [m for m in matches if len(m) > 0]
     match_points = np.array([
-        np.array([allpoints1[[m[0].queryIdx for m in goodmatches]]][0]),
-        np.array([allpoints2[[m[0].trainIdx for m in goodmatches]]][0])])
+        np.array([all_pts1[[m[0].queryIdx for m in goodmatches]]][0]),
+        np.array([all_pts2[[m[0].trainIdx for m in goodmatches]]][0])])
     return match_points
 
 
-def compare_features(section1_pts_resps_descs, section2_pts_resps_descs, actual_params):
-    [allpoints1, alldescs1] = section1_pts_resps_descs
-    [allpoints2, alldescs2] = section2_pts_resps_descs
-    # print("lengths: len(allpoints1): {}, alldescs1.shape: {}".format(len(allpoints1), alldescs1.shape))
-    # print("lengths: len(allpoints2): {}, alldescs2.shape: {}".format(len(allpoints2), alldescs2.shape))
-    # match_points = generatematches_cv2(allpoints1, allpoints2, alldescs1, alldescs2, actual_params)
-    match_points = generatematches_crosscheck_cv2(allpoints1, allpoints2, alldescs1, alldescs2, actual_params)
+def compare_features(section1_pts_descs, section2_pts_descs, align_args):
+    [all_pts1, all_descs1] = section1_pts_descs
+    [all_pts2, all_descs2] = section2_pts_descs
+    log_controller.debug("len(all_pts1): {}, all_descs1.shape: {}".format(len(all_pts1), all_descs1.shape))
+    log_controller.debug("len(all_pts2): {}, all_descs2.shape: {}".format(len(all_pts2), all_descs2.shape))
+    match_points = generatematches_crosscheck_cv2(all_pts1, all_pts2, all_descs1, all_descs2)
 
     if match_points.shape[0] == 0 or match_points.shape[1] == 0:
-        return (None, 0, 0, 0, len(allpoints1), len(allpoints2))
+        return None, 0, 0, 0, len(all_pts1), len(all_pts2)
 
-    model_index = actual_params["model_index"]
-    iterations = actual_params["iterations"]
-    max_epsilon = actual_params["max_epsilon"]
-    min_inlier_ratio = actual_params["min_inlier_ratio"]
-    min_num_inlier = actual_params["min_num_inlier"]
-    max_trust = actual_params["max_trust"]
-    det_delta = actual_params["det_delta"]
-    max_stretch = actual_params["max_stretch"]
+    model_index = align_args["model_index"]
+    iterations = align_args["iterations"]
+    max_epsilon = align_args["max_epsilon"]
+    min_inlier_ratio = align_args["min_inlier_ratio"]
+    min_num_inlier = align_args["min_num_inlier"]
+    max_trust = align_args["max_trust"]
+    det_delta = align_args["det_delta"]
+    max_stretch = align_args["max_stretch"]
     model, filtered_matches = ransac.filter_matches(match_points, model_index, iterations, max_epsilon,
                                                     min_inlier_ratio, min_num_inlier, max_trust, det_delta, max_stretch)
     if filtered_matches is None:
         filtered_matches = np.zeros((0, 0))
     return (
     model, filtered_matches.shape[1], float(filtered_matches.shape[1]) / match_points.shape[1], match_points.shape[1],
-    len(allpoints1), len(allpoints2))
+    len(all_pts1), len(all_pts2))
 
 
 def load_mfovs_features(indexed_ts, features_dir, mfovs_idx):
-    all_points, all_resps, all_descs = np.array([]).reshape((0, 2)), [], []
+    all_points, all_descs = np.array([]).reshape((0, 2)), []
     for idx in mfovs_idx:
         mfov_points, mfov_descs = analyze_mfov(indexed_ts[idx], features_dir)
         all_points = np.append(all_points, mfov_points, axis=0)
@@ -144,19 +141,19 @@ def load_mfovs_features(indexed_ts, features_dir, mfovs_idx):
     return all_points, all_descs
 
 
-def iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2, features_dir1, features_dir2, mfovs_nums1,
+def iterative_search(align_args, layer1, layer2, indexed_ts1, indexed_ts2, features_dir1, features_dir2, mfovs_nums1,
                      centers_mfovs_nums2, section2_mfov_bboxes, sorted_mfovs2, assumed_model=None,
                      is_initial_search=False, point1=None):
     # Load the features from the mfovs in section 1
     all_points1, all_descs1 = load_mfovs_features(indexed_ts1, features_dir1, mfovs_nums1)
-    section1_pts_resps_descs = [all_points1, np.vstack(all_descs1)]
+    section1_pts_descs = [all_points1, np.vstack(all_descs1)]
     print("Section {} - mfovs: {}, {} features loaded.".format(layer1, mfovs_nums1, len(all_points1)))
 
     # Make sure we have enough features from section 1
-    if len(all_points1) < actual_params["min_features_num"]:
+    if len(all_points1) < align_args["min_features_num"]:
         print(
             "Number of features in Section {} mfov(s) {} is {}, and smaller than {}. Skipping feature matching".format(
-                layer1, mfovs_nums1, len(all_points1), actual_params["min_features_num"]))
+                layer1, mfovs_nums1, len(all_points1), align_args["min_features_num"]))
         return None, 0, 0, 0, 0, 0, 0
 
     # Take the mfovs in the middle of the 2nd section as the initial matched area
@@ -201,8 +198,8 @@ def iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2, fe
         print("Iteration {}: using {} mfovs from section {} ({} features)".format(match_iteration, len(current_mfovs),
                                                                                   layer2, len(current_features_pts)))
         # Try to match the 3-mfovs features of section1 to the current features of section2
-        (model, num_filtered, filter_rate, num_rod, num_m1, num_m2) = compare_features(section1_pts_resps_descs,
-                                                                                       current_features, actual_params)
+        (model, num_filtered, filter_rate, num_rod, num_m1, num_m2) = compare_features(section1_pts_descs,
+                                                                                       current_features, align_args)
 
         if model is None:
             if saved_model['model'] is not None:
@@ -230,16 +227,16 @@ def iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2, fe
                 break
 
         if num_filtered > (
-                actual_params["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)) and filter_rate > \
-                actual_params["filter_rate_cutoff"]:
+                align_args["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)) and filter_rate > \
+                align_args["filter_rate_cutoff"]:
             best_transform = model
             match_found = True
         else:
             # Find the mfovs that are overlapping with the current area
             print("len(mfovs_nums1)", len(mfovs_nums1))
             print("threshold wasn't met: num_filtered: {} > {} and filter_rate: {} > {}".format(num_filtered, (
-                        actual_params["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)), filter_rate,
-                                                                                                actual_params[
+                    align_args["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)), filter_rate,
+                                                                                                align_args[
                                                                                                     "filter_rate_cutoff"]))
             overlapping_mfovs = set()
             for m in sorted_mfovs2:
@@ -267,7 +264,7 @@ def iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2, fe
             current_features = (current_features_pts, np.vstack(current_features_descs))
             current_mfovs = overlapping_mfovs
 
-        if not is_initial_search and match_iteration == actual_params["max_attempts"]:
+        if not is_initial_search and match_iteration == align_args["max_attempts"]:
             print("Reached maximal number of attempts in iterative search, stopping search")
 
     if best_transform is None and saved_model['model'] is not None:
