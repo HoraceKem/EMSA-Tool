@@ -2,7 +2,6 @@ import sys
 import cv2
 import numpy as np
 from scipy.ndimage.filters import maximum_filter
-#import pylab
 
 FAIL_PMCC_SCORE_TOO_LOW = 0
 FAIL_PMCC_ON_EDGE = 1

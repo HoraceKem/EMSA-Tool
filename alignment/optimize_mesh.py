@@ -404,18 +404,6 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
         if "DUMP_LOCATIONS" in os.environ:
             cPickle.dump([ts, out_positions[ts]], open("newpos{}.pickle".format(i), "w"))
 
-#    if tsfile_to_layerid is not None:
-#        for tsfile, layerid in tsfile_to_layerid.iteritems():
-#            if layerid in present_slices:
-#                meshidx = mesh_pt_offsets[layerid]
-#                out_positions[tsfile] = [(mesh.pts / mesh.layer_scale).tolist(),
-#                                         (all_mesh_pts[meshidx, :] / mesh.layer_scale).tolist()]
-#                if "DUMP_LOCATIONS" in os.environ:
-#                    cPickle.dump([tsfile, out_positions[tsfile]], open("newpos{}.pickle".format(meshidx), "w"))
-#            else:
-#                out_positions[tsfile] = [(mesh.pts / mesh.layer_scale).tolist(),
-#                                         (mesh.pts / mesh.layer_scale).tolist()]
-
     return out_positions
 
 def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
@@ -455,38 +443,14 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
         if len(pts1) > 0:
             pair_ts_to_pts[data["tilespec1"]][data["tilespec2"]].append((pts1, pts2))
 
-#    # Make sure the meshes are initialized per tilespec
-#    for tilespec_url in meshes_per_mfov:
-#        if tilespec_url not in meshes:
-#            # Merge all the mfov sub-meshes into a single mesh, and set it as the tilespec's mesh
-#            # (this seems to be the fastest way to merge, according to: http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python)
-#            merged_points = [p for submesh in meshes_per_mfov[tilespec_url].values() for p in submesh]
-#            merged_points = np.array(merged_points)
-#            ## Get unique mesh points (according to: http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array)
-#            b = np.ascontiguousarray(merged_points).view(np.dtype((np.void, merged_points.dtype.itemsize * merged_points.shape[1])))
-#            _, idx = np.unique(b, return_index=True)
-#            merged_points = merged_points[idx]
-#            meshes[tilespec_url] = Mesh(merged_points)
-
-#    # Free some memory
-#    del meshes_per_mfov
-#    gc.collect()
-
     links = {}
     # extract links
     for ts1 in meshes:
         for ts2 in pair_ts_to_pts[ts1]:
-            #print("ts1:",ts1,"ts2:",ts2,[l[0].shape for l in pair_ts_to_pts[ts1][ts2]])
             pts1 = np.concatenate([l[0] for l in pair_ts_to_pts[ts1][ts2]])
             pts2 = np.concatenate([l[1] for l in pair_ts_to_pts[ts1][ts2]])
 
             if len(pts1) > 0:
-                ## Get unique mesh points (according to: http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array)
-                #b = np.ascontiguousarray(pts1).view(np.dtype((np.void, pts1.dtype.itemsize * pts1.shape[1])))
-                #_, idx = np.unique(b, return_index=True)
-                #pts1 = pts1[idx]
-                #pts2 = pts2[idx]
-
                 pts1, pts2 = meshes[ts1].remove_unneeded_points(pts1, pts2)
                 pts2, pts1 = meshes[ts2].remove_unneeded_points(pts2, pts1)
 
@@ -498,6 +462,7 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     gc.collect()
  
     return optimize_meshes_links(meshes, links, layers, conf_dict)
+
 
 if __name__ == '__main__':
     new_positions = optimize_meshes(sys.argv[1:-1], 1500)

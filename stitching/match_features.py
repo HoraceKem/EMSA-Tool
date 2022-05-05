@@ -23,11 +23,11 @@ def load_features(h5_file_path: str) -> [str, np.array, np.array]:
     :return:
     """
     log_controller.debug('Loading features from file: {}'.format(h5_file_path))
-    with h5py.File(h5_file_path, 'r') as hf:
-        image_url = str(hf["imageUrl"][...]).replace('b\'', '').replace('\'', '')
+    with h5py.File(h5_file_path, 'r') as f:
+        image_url = str(f["imageUrl"][...]).replace('b\'', '').replace('\'', '')
         log_controller.debug('The features are extracted from: {}'.format(image_url))
-        locations = hf["pts/locations"][...]
-        descriptors = hf["descs"][...]
+        locations = f["pts/locations"][...]
+        descriptors = f["descs"][...]
     return image_url, locations, descriptors
 
 
