@@ -1,56 +1,56 @@
-# Setup
-from __future__ import print_function
-from rh_renderer import models
-from ..common import ransac
 import os
 import numpy as np
 import h5py
 import json
-import random
 import sys
-from scipy.spatial import distance
 import cv2
 import time
 import glob
-import argparse
-from ..common import utils
-from scipy.spatial import Delaunay
-from ..common.bounding_box import BoundingBox
+import common.trans_models as models
+from common import ransac
+from common import utils
+from common.bounding_box import BoundingBox
 
-TILES_PER_MFOV = 61
-    
 
-def load_features(feature_file, tile_ts):
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
+if overall_args["base"]["EM_type"] == 'singlebeam':
+    TILES_PER_MFOV = 1
+else:
+    TILES_PER_MFOV = 61
+
+
+def load_features(h5_file_path, tilespec):
+    log_controller.debug('Loading features from file: {}'.format(h5_file_path))
     # Should have the same name as the following: [tilespec base filename]_[img filename].json/.hdf5
-    assert(os.path.basename(os.path.splitext(tile_ts["mipmapLevels"]["0"]["imageUrl"])[0]) in feature_file)
+    if not os.path.basename(os.path.splitext(tilespec["mipmapLevels"]["0"]["imageUrl"])[0]) in h5_file_path:
+        log_controller.error(utils.to_red('Features file does not match tilespec'))
+        raise AssertionError
 
-    # print("Loading feature file {} of tile {}, with a transform {}".format(feature_file, tile_ts["mipmapLevels"]["0"]["imageUrl"], tile_ts["transforms"][0]))
-    # load the image features
-    with h5py.File(feature_file, 'r') as f:
-        resps = f['pts']['responses'][:]
+    with h5py.File(h5_file_path, 'r') as f:
+        responses = f['pts']['responses'][:]
         descs = f['descs'][:]
-        octas = f['pts']['octaves'][:]
-        allps = np.array(f['pts']['locations'])
-
-    #resps, descs, octas, allps = compute_features(tile_ts)
+        octaves = f['pts']['octaves'][:]
+        locations = np.array(f['pts']['locations'])
 
     # If no relevant features are found, return an empty set
-    if (len(allps) == 0):
+    if len(locations) == 0:
         return (np.array([]).reshape((0, 2)), [], [])
 
-
-    currentocta = (octas.astype(int) & 0xff)
+    currentocta = (octaves.astype(int) & 0xff)
     currentocta[currentocta > 127] -= 255
     mask = (currentocta == 4) | (currentocta == 5)
-    points = allps[mask, :]
-    resps = resps[mask]
+    points = locations[mask, :]
+    responses = responses[mask]
     descs = descs[mask]
 
     # Apply the transformation to each point
-    newmodel = models.Transforms.from_tilespec(tile_ts["transforms"][0])
+    newmodel = models.Transforms.from_tilespec(tilespec["transforms"][0])
     points = newmodel.apply(points)
 
-    return (points, resps, descs)
+    return (points, responses, descs)
 
 
 def getcenter(mfov_ts):
@@ -60,7 +60,6 @@ def getcenter(mfov_ts):
         ylocsum += tile_ts["bbox"][2] + tile_ts["bbox"][3]
         nump += 2
     return [xlocsum / nump, ylocsum / nump]
-
 
 
 def analyzemfov(mfov_ts, features_dir):
@@ -267,12 +266,10 @@ def iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2, fe
     return best_transform, num_filtered, filter_rate, num_rod, num_m1, num_m2, match_iteration
 
 
-
-
-def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, actual_params):
-    # Read the tilespecs
-    ts1 = utils.load_json_file(tiles_fname1)
-    ts2 = utils.load_json_file(tiles_fname2)
+def analyze_slices(tilespecs_file_path1: str, tilespecs_file_path2: str,
+                   features_folder_path1: str, features_folder_path2: str, align_args: dict):
+    ts1 = utils.load_json_file(tilespecs_file_path1)
+    ts2 = utils.load_json_file(tilespecs_file_path2)
     indexed_ts1 = utils.index_tilespec(ts1)
     indexed_ts2 = utils.index_tilespec(ts2)
 
@@ -282,13 +279,13 @@ def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, act
     sorted_mfovs1 = sorted(indexed_ts1.keys())
     sorted_mfovs2 = sorted(indexed_ts2.keys())
 
-    layer1 = indexed_ts1.values()[0].values()[0]["layer"]
-    layer2 = indexed_ts2.values()[0].values()[0]["layer"]
+    layer1 = indexed_ts1[0][0]["layer"]
+    layer2 = indexed_ts2[0][0]["layer"]
     to_ret = []
     best_transform = None
 
     # Get all the centers of each section
-    #print("Fetching sections centers")
+    log_controller.debug("Fetching sections centers...")
     centers1 = np.array([getcenter(indexed_ts1[m]) for m in sorted_mfovs1])
     centers2 = np.array([getcenter(indexed_ts2[i]) for i in sorted_mfovs2])
 
@@ -312,12 +309,10 @@ def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, act
     print("Comparing Sec{} (mfovs: {}) and Sec{} (starting from mfovs: {})".format(layer1, closest_mfovs_nums1, layer2, centers_mfovs_nums2))
     initial_search_start_time = time.time()
     # Do an iterative search of the mfovs closest to the center of section 1 to the mfovs of section2 (starting from the center)
-    best_transform, num_filtered, filter_rate, _, _, _, initial_search_iters_num = iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2,
-                         features_dir1, features_dir2, closest_mfovs_nums1, centers_mfovs_nums2, section2_mfov_bboxes, sorted_mfovs2, is_initial_search=True)
+    best_transform, num_filtered, filter_rate, _, _, _, initial_search_iters_num = iterative_search(align_args, layer1, layer2, indexed_ts1, indexed_ts2,
+                                                                                                    features_folder_path1, features_folder_path2, closest_mfovs_nums1, centers_mfovs_nums2, section2_mfov_bboxes, sorted_mfovs2, is_initial_search=True)
     initial_search_end_time = time.time()
 
-
-    
     if best_transform is None:
         print("Could not find a preliminary transform between sections: {} and {}, after {} seconds.".format(layer1, layer2, initial_search_end_time - initial_search_start_time))
         return to_ret, initial_search_iters_num, initial_search_end_time - initial_search_start_time
@@ -325,30 +320,10 @@ def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, act
     best_transform_matrix = best_transform.get_matrix()
     print("Found a preliminary transform between sections: {} and {} (filtered matches#: {}, rate: {}), with model: {} in {} seconds, and {} iterations".format(layer1, layer2, num_filtered, filter_rate, best_transform_matrix, initial_search_end_time - initial_search_start_time, initial_search_iters_num))
 
-
     # Iterate throught the mfovs of section1, and try to find
     # for each mfov the transformation to section 2
     # (do an iterative search as was done in the previous phase)
     for i in range(0, num_mfovs1):
-        # Find the location of all mfovs in section 2 that "overlap" the current mfov from section 1
-        # (according to the estimated transform)
-        #section1_mfov_bbox = BoundingBox.read_bbox_from_ts(indexed_ts1[i + 1].values())
-        #print("section1_mfov_bbox: {}".format(section1_mfov_bbox))
-        #bbox_points = np.array([[section1_mfov_bbox.from_x, section1_mfov_bbox.from_y, 1.0],
-        #                        [section1_mfov_bbox.from_x, section1_mfov_bbox.to_y, 1.0],
-        #                        [section1_mfov_bbox.to_x, section1_mfov_bbox.from_y, 1.0],
-        #                        [section1_mfov_bbox.to_x, section1_mfov_bbox.to_y, 1.0]])
-        #bbox_points_projected = [np.dot(best_transform_matrix, p)[0:2] for p in bbox_points]
-        #projected_min_x, projected_min_y = np.min(bbox_points_projected, axis=0)
-        #projected_max_x, projected_max_y = np.max(bbox_points_projected, axis=0)
-        #projected_mfov_bbox = BoundingBox(projected_min_x, projected_max_x, projected_min_y, projected_max_y)
-        #print("projected_mfov_bbox: {}".format(projected_mfov_bbox))
-        #relevant_mfovs_nums2 = []
-        #for j, section2_mfov_bbox in enumerate(section2_mfov_bboxes):
-        #    if projected_mfov_bbox.overlap(section2_mfov_bbox):
-        #        relevant_mfovs_nums2.append(j + 1)
-
-        # Find the "location" of mfov i's center on section2
         center1 = centers1[i]
         center1_transformed = np.dot(best_transform_matrix, np.append(center1, [1]))[0:2]
         distances = np.array([np.linalg.norm(center1_transformed - centers2[j]) for j in range(num_mfovs2)])
@@ -357,8 +332,8 @@ def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, act
         print("Initial assumption Section {} mfov {} will match Section {} mfovs {}".format(layer1, sorted_mfovs1[i], layer2, relevant_mfovs_nums2))
         # Do an iterative search of the mfov from section 1 to the "corresponding" mfov of section2
         mfov_search_start_time = time.time()
-        mfov_transform, num_filtered, filter_rate, num_rod, num_m1, num_m2, match_iterations = iterative_search(actual_params, layer1, layer2, indexed_ts1, indexed_ts2,
-                             features_dir1, features_dir2, [sorted_mfovs1[i]], relevant_mfovs_nums2, section2_mfov_bboxes, sorted_mfovs2, assumed_model=best_transform, is_initial_search=False, point1=center1)
+        mfov_transform, num_filtered, filter_rate, num_rod, num_m1, num_m2, match_iterations = iterative_search(align_args, layer1, layer2, indexed_ts1, indexed_ts2,
+                                                                                                                features_folder_path1, features_folder_path2, [sorted_mfovs1[i]], relevant_mfovs_nums2, section2_mfov_bboxes, sorted_mfovs2, assumed_model=best_transform, is_initial_search=False, point1=center1)
         mfov_search_end_time = time.time()
         if mfov_transform is None:
             # Could not find a transformation for the given mfov
@@ -383,82 +358,34 @@ def analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, act
             dictentry['mfov_iterations_num'] = match_iterations
             to_ret.append(dictentry)
 
-
     return to_ret, initial_search_iters_num, initial_search_end_time - initial_search_start_time
 
-def match_layers_sift_features(tiles_fname1, features_dir1, tiles_fname2, features_dir2, out_fname, conf_fname=None):
-    params = utils.conf_from_file(conf_fname, 'MatchLayersSiftFeaturesAndFilter')
-    if params is None:
-        params = {}
-    actual_params = {}
-    # Parameters for the matching
-    actual_params["max_attempts"] = params.get("max_attempts", 10)
-    actual_params["num_filtered_percent"] = params.get("num_filtered_percent", 0.25)
-    actual_params["filter_rate_cutoff"] = params.get("filter_rate_cutoff", 0.25)
-    actual_params["ROD_cutoff"] = params.get("ROD_cutoff", 0.92)
-    actual_params["min_features_num"] = params.get("min_features_num", 40)
 
-    # Parameters for the RANSAC
-    actual_params["model_index"] = params.get("model_index", 1)
-    actual_params["iterations"] = params.get("iterations", 500)
-    actual_params["max_epsilon"] = params.get("max_epsilon", 500.0)
-    actual_params["min_inlier_ratio"] = params.get("min_inlier_ratio", 0.01)
-    actual_params["min_num_inlier"] = params.get("min_num_inliers", 7)
-    actual_params["max_trust"] = params.get("max_trust", 3)
-    actual_params["det_delta"] = params.get("det_delta", 0.7)
-    actual_params["max_stretch"] = params.get("max_stretch", 0.25)
-
-    print("Matching layers: {} and {}".format(tiles_fname1, tiles_fname2))
-    tiles_fname1 = os.path.abspath(tiles_fname1)
-    tiles_fname2 = os.path.abspath(tiles_fname2)
-
-    starttime = time.time()
-
-    # Match the two sections
-    retval, initial_search_iters_num, initial_search_time = analyze_slices(tiles_fname1, tiles_fname2, features_dir1, features_dir2, actual_params)
+def pre_match_layers(tilespecs_file_path1: str, features_folder_path1: str,
+                     tilespecs_file_path2: str, features_folder_path2: str, output_file_path: str, align_args: dict):
+    """
+    Pre-match two layers using the features
+    :param tilespecs_file_path1:
+    :param features_folder_path1:
+    :param tilespecs_file_path2:
+    :param features_folder_path2:
+    :param output_file_path:
+    :param align_args:
+    :return:
+    """
+    log_controller.debug("Matching layers: {} and {}".format(tilespecs_file_path1, tilespecs_file_path2))
+    retval, initial_search_iters_num, initial_search_time = analyze_slices(tilespecs_file_path1, tilespecs_file_path2,
+                                                                           features_folder_path1, features_folder_path2,
+                                                                           align_args)
 
     if len(retval) == 0:
-        print("Could not find a match, avoiding any output to: {}".format(out_fname))
+        log_controller.warning(utils.to_red("Could not find a match!"))
     else:
-        # Save the output
-        jsonfile = {}
-        jsonfile['tilespec1'] = tiles_fname1
-        jsonfile['tilespec2'] = tiles_fname2
-        jsonfile['matches'] = retval
-        jsonfile['runtime'] = time.time() - starttime
-        jsonfile['initial_search_iterations_num'] = initial_search_iters_num
-        jsonfile['initial_search_time'] = initial_search_time
-        with open(out_fname, 'w') as out:
+        jsonfile = {'tilespec1': tilespecs_file_path1,
+                    'tilespec2': tilespecs_file_path2,
+                    'matches': retval,
+                    'initial_search_iterations_num': initial_search_iters_num,
+                    'initial_search_time': initial_search_time}
+        with open(output_file_path, 'w') as out:
             json.dump(jsonfile, out, indent=4)
-
-    print("Done.")
-
-
-def main():
-    print(sys.argv)
-    # Command line parser
-    parser = argparse.ArgumentParser(description='Iterates over the mfovs in 2 tilespecs of two sections, computing matches for each overlapping mfov.')
-    parser.add_argument('tiles_file1', metavar='tiles_file1', type=str,
-                        help='the first layer json file containing tilespecs')
-    parser.add_argument('features_dir1', metavar='features_dir1', type=str,
-                        help='the first layer features directory')
-    parser.add_argument('tiles_file2', metavar='tiles_file2', type=str,
-                        help='the second layer json file containing tilespecs')
-    parser.add_argument('features_dir2', metavar='features_dir2', type=str,
-                        help='the second layer features directory')
-    parser.add_argument('-o', '--output_file', type=str,
-                        help='an output correspondent_spec file, that will include the matches between the sections (default: ./matches.json)',
-                        default='./matches.json')
-    parser.add_argument('-c', '--conf_file_name', type=str,
-                        help='the configuration file with the parameters for each step of the alignment process in json format (uses default parameters, if not supplied)',
-                        default=None)
-
-    args = parser.parse_args()
-
-    match_layers_sift_features(args.tiles_file1, args.features_dir1,
-                               args.tiles_file2, args.features_dir2, args.output_file,
-                               conf_fname=args.conf_file_name)
-
-
-if __name__ == '__main__':
-    main()
+        log_controller.debug("Saved the layers pre-matching result into {}".format(output_file_path))

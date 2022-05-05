@@ -1,0 +1,18 @@
+{
+    "pre_match":
+    {
+        "max_attempts": 10,
+        "num_filtered_percent": 0.25,
+        "filter_rate_cutoff": 0.25,
+        "ROD_cutoff": 0.92,
+        "min_features_num": 40,
+        "model_index": 1,
+        "iterations": 500,
+        "max_epsilon": 500.0,
+        "min_inlier_ratio": 0.01,
+        "min_num_inliers": 7,
+        "max_trust": 3,
+        "det_delta": 0.7,
+        "max_stretch": 0.25
+    }
+}

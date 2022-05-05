@@ -428,7 +428,7 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     for match_file in match_files_list:
         # Assumes that the mesh can be separated into multiple files with the same tilespec1 or tilespec2
         data = None
-        print match_file
+        print(match_file)
         with open(match_file, 'r') as f:
             data = json.load(f)
         if not data["tilespec1"] in meshes:

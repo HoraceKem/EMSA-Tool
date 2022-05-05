@@ -2,6 +2,7 @@
 	"base":
 	{
 		"running_mode": "debug",
+		"EM_type": "singlebeam",
         "workspace":"default_workspace",
 		"sample_dir":["/media/sem-lab/Hub1/RB98_imgs_1", "/media/sem-lab/Hub2/RB98_imgs_2"],
 		"split_tile_size": 0,
