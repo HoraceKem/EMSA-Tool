@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import glob
+import math
 import termcolor
 from pymage_size import get_image_size
 
@@ -316,3 +317,31 @@ def check_tiles_num(section_folder_path: str, EM_type: str) -> int:
     else:
         raise AssertionError('Wrong EM type.')
     return tiles_num
+
+
+def generate_hexagonal_grid(bbox: list, spacing: int):
+    """
+    Generates a hexagonal grid inside a given bounding-box with a given spacing between the vertices
+    :param bbox:
+    :param spacing:
+    :return:
+    """
+    hex_height = spacing
+    hex_width = math.sqrt(3) * spacing / 2
+    vertical_spacing = 0.75 * hex_height
+    horizontal_spacing = hex_width
+    size_x = int((bbox[1] - bbox[0]) / horizontal_spacing) + 2
+    size_y = int((bbox[3] - bbox[2]) / vertical_spacing) + 2
+    if size_y % 2 == 0:
+        size_y += 1
+    pts = []
+    for i in range(-2, size_x):
+        for j in range(-2, size_y):
+            x_loc = i * spacing
+            y_loc = j * spacing
+            if j % 2 == 1:
+                x_loc += spacing * 0.5
+            if (j % 2 == 1) and (i == size_x - 1):
+                continue
+            pts.append([int(x_loc + bbox[0]), int(y_loc + bbox[2])])
+    return pts

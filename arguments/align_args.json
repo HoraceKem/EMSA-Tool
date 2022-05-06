@@ -14,5 +14,15 @@
         "max_trust": 3,
         "det_delta": 0.7,
         "max_stretch": 0.25
+    },
+    "block_match":
+    {
+        "hex_spacing": 1500,
+        "scaling": 0.2,
+        "template_size": 200,
+        "search_window_size_scale": 8,
+        "min_correlation": 0.2,
+        "maximal_curvature_ratio": 10,
+        "maximal_ROD": 0.9
     }
 }
