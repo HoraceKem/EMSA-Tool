@@ -18,6 +18,9 @@
 |      iter       |                 in short of iteration                 |
 |      layer      |             the index of section (number)             |
 |       ls        |               (function name) list out                |
+|     max_med     |              max of the median distance               |
+|    mean_med     |              mean of the median distance              |
+|     med_med     |             median of the median distance             |
 |      mfov       |      the index the mFoV (multiple field of view)      |
 |    modelspec    |     the specification on the transformation model     |
 |    multibeam    |        specifically designed for multibeam EM         |

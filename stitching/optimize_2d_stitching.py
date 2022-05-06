@@ -1,5 +1,5 @@
 import json
-import sys
+import os
 import random
 import progressbar
 import numpy as np
@@ -8,9 +8,14 @@ from common import utils
 from scipy.sparse.linalg import lsqr
 from collections import defaultdict
 
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
+
 
 def distance(point1, point2):
-    return np.sqrt(((point1-point2)**2).sum(axis=0))
+    return np.sqrt(((point1 - point2) ** 2).sum(axis=0))
 
 
 def find_rotation(point1, point2, step_size):
@@ -21,14 +26,14 @@ def find_rotation(point1, point2, step_size):
                      [np.sin(angle), np.cos(angle)]])
 
 
-def create_new_tilespec(old_tilespec_filename, rotations, translations, centers, new_tilespec_filename):
-    print("Optimization done, saving tilespec at: {}".format(new_tilespec_filename))
+def create_new_tilespec(old_tilespec_filename, rotations, translations, centers, new_tilespec_file_path):
+    log_controller.debug("Optimization done, saving tilespec at: {}".format(new_tilespec_file_path))
     tilespecs = utils.load_json_file(old_tilespec_filename)
 
     for ts in tilespecs:
         img_url = ts["mipmapLevels"]["0"]["imageUrl"]
         if img_url not in rotations.keys():
-            print("Flagging out tile {}, as no rotation was found".format(img_url))
+            log_controller.debug("Flagging out tile {}, as no rotation was found".format(img_url))
             continue
 
         old_bbox = [float(d) for d in ts["bbox"]]
@@ -38,7 +43,6 @@ def create_new_tilespec(old_tilespec_filename, rotations, translations, centers,
             np.array([np.array([old_bbox[0]]), np.array([old_bbox[3]])]),
             np.array([np.array([old_bbox[1]]), np.array([old_bbox[3]])])
         ]
-        print(np.asarray((old_bbox_points[1] - old_bbox_points[0]).T))
 
         trans = np.array(translations[img_url])  # an array of 2 elements
         rot_matrix = np.matrix(rotations[img_url]).T  # a 2x2 matrix
@@ -48,7 +52,6 @@ def create_new_tilespec(old_tilespec_filename, rotations, translations, centers,
         min_xy = np.min(transformed_points, axis=0).flatten()
         max_xy = np.max(transformed_points, axis=0).flatten()
         new_bbox = [min_xy[0], max_xy[0], min_xy[1], max_xy[1]]
-        print(transformed_points[0])
 
         delta = np.asarray(transformed_points[0].T)[0]
         x, y = np.asarray((old_bbox_points[1] - old_bbox_points[0]).T)[0]
@@ -67,9 +70,9 @@ def create_new_tilespec(old_tilespec_filename, rotations, translations, centers,
 
         ts["bbox"] = new_bbox
 
-    with open(new_tilespec_filename, 'w') as outjson:
-        json.dump(tilespecs, outjson, sort_keys=True, indent=4)
-        print('Wrote tilespec to {}'.format(new_tilespec_filename))
+    with open(new_tilespec_file_path, 'w') as f:
+        json.dump(tilespecs, f, sort_keys=True, indent=4)
+        log_controller.debug('Wrote tilespec to {}'.format(new_tilespec_file_path))
 
 
 def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename):
@@ -78,33 +81,29 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
 
     with open(match_list_file, 'r') as list_file:
         match_files = list_file.readlines()
-    match_files = [fname.replace('\n', '') for fname in match_files]
+    match_files = [file_path.replace('\n', '') for file_path in match_files]
 
-    maxiter = 1000
+    max_iters = 1000
     epsilon = 5
-    stepsize = 0.1
+    step_size = 0.1
     damping = 0.01
-    noemptymatches = True
+    no_empty_matches_flag = True
     tile_specification = utils.load_json_file(tiles_filename)
 
     pbar = progressbar.ProgressBar()
     for f in pbar(match_files):
-        try:
-            data = json.load(open(f))
-        except:
-            print("Error when parsing: {}".format(f))
-            raise
+        data = json.load(open(f))
         points1 = np.array([c["p1"]["w"] for c in data[0]["correspondencePointPairs"]]).T
         points2 = np.array([c["p2"]["w"] for c in data[0]["correspondencePointPairs"]]).T
         url1 = data[0]["url1"]
         url2 = data[0]["url2"]
-        print(url1, url2)
+        log_controller.debug("url1: {}, url2: {}".format(url1, url2))
 
         if points1.size > 0:
             all_matches[url1, url2] = (points1, points2)
             all_points[url1].append(points1)
             all_points[url2].append(points2)
-        elif noemptymatches:
+        elif no_empty_matches_flag:
             tile1 = {}
             tile2 = {}
             for t in tile_specification:
@@ -135,12 +134,11 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
 
             correspondence_pairs = []
             for i in range(0, len(x_values)):
-                new_pair = {}
-                new_pair["dist_after_ransac"] = 1.0
-                new_pair["p1"] = {"l": [x_values[i] - tile1["bbox"][0], y_values[i] - tile1["bbox"][2]],
-                                  "w": [x_values[i], y_values[i]]}
-                new_pair["p2"] = {"l": [x_values[i] - tile2["bbox"][0], y_values[i] - tile2["bbox"][2]],
-                                  "w": [x_values[i], y_values[i]]}
+                new_pair = {"dist_after_ransac": 1.0,
+                            "p1": {"l": [x_values[i] - tile1["bbox"][0], y_values[i] - tile1["bbox"][2]],
+                                   "w": [x_values[i], y_values[i]]},
+                            "p2": {"l": [x_values[i] - tile2["bbox"][0], y_values[i] - tile2["bbox"][2]],
+                                   "w": [x_values[i], y_values[i]]}}
                 correspondence_pairs.append(new_pair)
 
             points1 = np.array([c["p1"]["w"] for c in correspondence_pairs]).T
@@ -152,12 +150,12 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
     centers = {k: np.mean(np.hstack(points), axis=1, keepdims=True) for k, points in all_points.items()}
     url_index = {url: index for index, url in enumerate(all_points)}
 
-    prev_meanmed = np.inf
+    prev_mean_med = np.inf
 
     T = defaultdict(lambda: np.zeros((2, 1)))
     R = defaultdict(lambda: np.eye(2))
 
-    for iter in range(maxiter):
+    for i in range(max_iters):
         # transform points by the current trans/rot
         trans_matches = {(k1, k2): (np.dot(R[k1], p1 - centers[k1]) + T[k1] + centers[k1],
                                     np.dot(R[k2], p2 - centers[k2]) + T[k2] + centers[k2])
@@ -170,18 +168,18 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
         masked_matches = {k: (p1[:, masks[k]], p2[:, masks[k]]) for k, (p1, p2) in trans_matches.items()}
 
         median_dists = [np.median(d) for d in distances.values()]
-        medmed = np.median(median_dists)
-        meanmed = np.mean(median_dists)
-        maxmed = np.max(median_dists)
-        print("med-med distance: {}, mean-med distance: {}  max-med: {}  SZ: {}".format(medmed, meanmed, maxmed,
-                                                                                            stepsize))
-        if meanmed < prev_meanmed:
-            stepsize *= 1.1
-            if stepsize > 1:
-                stepsize = 1
+        med_med = np.median(median_dists)
+        mean_med = np.mean(median_dists)
+        max_med = np.max(median_dists)
+        log_controller.debug("med-med distance: {}, mean-med distance: {}  "
+                             "max-med: {}  SZ: {}".format(med_med, mean_med, max_med, step_size))
+        if mean_med < prev_mean_med:
+            step_size *= 1.1
+            if step_size > 1:
+                step_size = 1
         else:
-            stepsize *= 0.5
-        prev_meanmed = meanmed
+            step_size *= 0.5
+        prev_mean_med = mean_med
 
         rows = np.hstack((np.arange(len(diffs)), np.arange(len(diffs))))
         cols = np.hstack(([url_index[url1] for (url1, url2) in diffs],
@@ -190,11 +188,10 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
         # diffs are p2 - p1, so we want a positive value on the translation for p1,
         # e.g., a solution could be Tp1 == p2 - p1.
 
-        Mvals = np.hstack(([pts.shape[1] for pts in diffs.values()],
-                           [-pts.shape[1] for pts in diffs.values()]))
+        M_vals = np.hstack(([pts.shape[1] for pts in diffs.values()],
+                            [-pts.shape[1] for pts in diffs.values()]))
 
-        print("solving")
-        M = spp.csr_matrix((Mvals, (rows, cols)))
+        M = spp.csr_matrix((M_vals, (rows, cols)))
 
         # We use the sum of match differences
         D = np.vstack([d.sum(axis=1) for d in diffs.values()])
@@ -205,16 +202,16 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
             T[k][1] += oTy[idx]
 
         # first iteration is translation only
-        if iter == 0:
+        if i == 0:
             continue
 
         # don't update Rotations on last iteration
-        if stepsize < 1e-30:
-            print("Step size is small enough, finishing optimization")
+        if step_size < 1e-30:
+            log_controller.debug("Step size is small enough, finishing optimization")
             break
 
         # don't update Rotations on last iteration
-        if iter < maxiter - 1:
+        if i < max_iters - 1:
             self_points = defaultdict(list)
             other_points = defaultdict(list)
             for (k1, k2), (p1, p2) in masked_matches.items():
@@ -230,7 +227,7 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
 
             new_R = {k: find_rotation(self_points[k] - self_centers[k],
                                       other_points[k] - other_centers[k],
-                                      stepsize)
+                                      step_size)
                      for k in self_centers}
             R = {k: np.dot(R[k], new_R[k]) for k in R}
 
@@ -239,16 +236,3 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
     centers = {k: v.tolist() for k, v in centers.items()}
 
     create_new_tilespec(tiles_filename, R, T, centers, output_json_filename)
-
-
-def main():
-    tiles_filename = sys.argv[1]
-    match_list_file = sys.argv[2]
-    output_json_filename = sys.argv[3]
-
-    optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
-
-
-if __name__ == '__main__':
-    main()
-
