@@ -3,11 +3,9 @@ import json
 import os
 import os.path
 import numpy as np
-import cPickle
+import pickle
 from scipy.spatial import Delaunay
 from sklearn.utils.extmath import randomized_svd
-#import matplotlib
-#matplotlib.use('GTK')
 import pylab
 from matplotlib import collections as mc
 import gc
@@ -120,7 +118,7 @@ def mean_offsets(meshes, links, stop_at_ts, plot=False):
             pylab.gca().add_collection(lc)
             pylab.scatter(pts1[:, 0], pts1[:, 1])
             pylab.gca().autoscale()
-            
+
         lens = np.sqrt(((pts1 - pts2) ** 2).sum(axis=1))
         #print(np.mean(lens), np.min(lens), np.max(lens))
         means.append(np.median(lens))
@@ -143,7 +141,7 @@ def ts_mean_offsets(meshes, links, ts, plot=False):
             pylab.gca().add_collection(lc)
             pylab.scatter(pts1[:, 0], pts1[:, 1])
             pylab.gca().autoscale()
-            
+
         lens = np.sqrt(((pts1 - pts2) ** 2).sum(axis=1))
         #print(np.mean(lens), np.min(lens), np.max(lens))
         means.append(np.median(lens))
@@ -183,7 +181,7 @@ def align_rigid(pts1, pts2):
     # convert to column vectors
     pts1 = pts1.T
     pts2 = pts2.T
-    
+
     m1 = pts1.mean(axis=1, keepdims=True)
     m2 = pts2.mean(axis=1, keepdims=True)
     U, S, VT = np.linalg.svd(np.dot((pts1 - m1), (pts2 - m2).T))
@@ -212,7 +210,7 @@ def Haffine_from_points(fp, tp):
     C1[0][2] = -m[0] / maxstd
     C1[1][2] = -m[1] / maxstd
     fp_cond = np.dot(C1[:2, :2], fp) + np.asarray(C1[:2, 2]).reshape((2, 1))
-    
+
     # --- to points ---
     m = tp.mean(axis=1, keepdims=True)
     C2 = C1.copy() # must use same scaling for both point sets
@@ -290,7 +288,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
         if layers[active_ts] in debugged_layers:
-            cPickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
+            pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
             #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "pre_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
 
     for active_ts in sorted_slices[1:]:
@@ -325,7 +323,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
         if layers[active_ts] in debugged_layers:
-            cPickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
+            pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
             # plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
 
     print("After preopt MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
@@ -382,7 +380,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
             # TODO - make this faster by just iterating over the debugged layers
             for active_ts in sorted_slices:
                 if layers[active_ts] in debugged_layers:
-                    cPickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_iter{}_{}.pickle".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))), "w"))
+                    pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_iter{}_{}.pickle".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))), "w"))
                     #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_iter{}_{}.png".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))))
 
 
@@ -406,7 +404,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
         out_positions[ts] = [meshes[ts].orig_pts,
                              meshes[ts].pts]
         if "DUMP_LOCATIONS" in os.environ:
-            cPickle.dump([ts, out_positions[ts]], open("newpos{}.pickle".format(i), "w"))
+            pickle.dump([ts, out_positions[ts]], open("newpos{}.pickle".format(i), "w"))
 
     return out_positions
 
@@ -465,5 +463,5 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     # free some memory
     del pair_ts_to_pts
     gc.collect()
- 
+
     return optimize_meshes_links(meshes, links, layers, conf_dict)
