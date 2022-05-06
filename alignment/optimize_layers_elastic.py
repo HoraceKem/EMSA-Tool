@@ -1,23 +1,44 @@
 import sys
 import os
-import glob
 import argparse
-from subprocess import call
-from ..common.bounding_box import BoundingBox
 import json
-import itertools
-from ..common import utils
+from common import utils
 from optimize_mesh import optimize_meshes
 import math
 import numpy as np
 from scipy import spatial
 import multiprocessing as mp
-from rh_renderer import models
+import common.trans_models as models
+
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
 
 SAMPLED_POINTS_NUM = 50
 
+
+def read_layer_from_file(tiles_spec_fname):
+    layer = None
+    with open(tiles_spec_fname, 'r') as data_file:
+        data = json.load(data_file)
+    for tile in data:
+        if tile['layer'] is None:
+            print("Error reading layer in one of the tiles in: {0}".format(tiles_spec_fname))
+            sys.exit(1)
+        if layer is None:
+            layer = tile['layer']
+        if layer != tile['layer']:
+            print("Error when reading tiles from {0} found inconsistent layers numbers: {1} and {2}".format(tiles_spec_fname, layer, tile['layer']))
+            sys.exit(1)
+    if layer is None:
+        print("Error reading layers file: {0}. No layers found.".format(tiles_spec_fname))
+        sys.exit(1)
+    return int(layer)
+
+
 def compute_points_model_halo(url_optimized_mesh0, points_tree):
-    print "Computing Points Transform Model Halo"
+    log_controller.debug("Computing Points Transform Model Halo")
 
     # Sample SAMPLED_POINTS_NUM points to find the closest neighbors to these points
     sampled_points_indices = np.random.choice(url_optimized_mesh0.shape[0], SAMPLED_POINTS_NUM, replace=False)
@@ -28,7 +49,7 @@ def compute_points_model_halo(url_optimized_mesh0, points_tree):
     distances, _ = points_tree.query(sampled_points, 2)
     min_point_dist = np.min(distances[:,1])
     halo = 2 * min_point_dist
-    print "Points model halo: {}".format(halo)
+    log_controller.debug("Points model halo: {}".format(halo))
 
     return halo
 
@@ -49,7 +70,7 @@ def get_points_transform_model(url_optimized_mesh, bbox, points_tree, halo):
     #print bbox_with_halo, "with filtered_indices:", pre_filtered_indices
 
     if len(pre_filtered_indices) == 0:
-        print "Could not find any mesh points in bbox {}, skipping the tile"
+        log_controller.debug("Could not find any mesh points in bbox {}, skipping the tile")
         return None
 
     filtered_src_points = []
@@ -60,7 +81,7 @@ def get_points_transform_model(url_optimized_mesh, bbox, points_tree, halo):
             filtered_dest_points.append(p_dest)
 
     if len(filtered_src_points) == 0:
-        print "Could not find any mesh points in bbox {}, skipping the tile"
+        log_controller.debug("Could not find any mesh points in bbox {}, skipping the tile")
         return None
 
     # print bbox_with_halo, "with pre_filtered_indices len:", len(pre_filtered_indices), "with matches_str:", matches_str
@@ -91,14 +112,16 @@ def compute_new_bounding_box(tile_ts):
     new_bbox = [int(math.floor(round(min_XY[0], 5))), int(math.ceil(round(max_XY[0], 5))), int(math.floor(round(min_XY[1], 5))), int(math.ceil(round(max_XY[1], 5)))]
     return new_bbox
 
+
 def save_json_file(out_fname, data):
     with open(out_fname, 'w') as outjson:
         json.dump(data, outjson, sort_keys=True, indent=4)
         print('Wrote tilespec to {0}'.format(out_fname))
         sys.stdout.flush()
 
+
 def save_optimized_mesh(ts_fname, url_optimized_mesh, out_dir):
-    print "Working on:", ts_fname
+    log_controller.debug("Working on:{}".format(ts_fname))
 
     # Use the first tile to find the halo for the entire section
     points_tree = spatial.KDTree(url_optimized_mesh[0])
@@ -127,7 +150,8 @@ def save_optimized_mesh(ts_fname, url_optimized_mesh, out_dir):
                 tile["bbox"] = compute_new_bounding_box(tile)
 
         for tile_index in sorted(tiles_to_remove, reverse=True):
-            print "Removing tile {} from {}".format(data[tile_index]["mipmapLevels"]["0"]["imageUrl"], out_fname)
+            log_controller.debug("Removing tile {} "
+                                 "from {}".format(data[tile_index]["mipmapLevels"]["0"]["imageUrl"], out_fname))
             del data[tile_index]
 
         # save the output tile spec
@@ -157,7 +181,7 @@ def save_optimized_meshes(all_tile_urls, optimized_meshes, out_dir, processes_nu
 def read_ts_layers(tile_files):
     tsfile_to_layerid = {}
 
-    print "Reading tilespec files"
+    log_controller.debug("Reading tilespec files...")
 
     # TODO - make sure its not a json files list
     actual_tile_urls = []
@@ -166,7 +190,7 @@ def read_ts_layers(tile_files):
     
     for url in actual_tile_urls:
         file_name = url.replace('file://', '')
-        layerid = utils.read_layer_from_file(file_name)
+        layerid = read_layer_from_file(file_name)
         tsfile = os.path.basename(url)
         tsfile_to_layerid[tsfile] = layerid
 
@@ -233,13 +257,13 @@ def main():
 
     args = parser.parse_args()
 
-    print "tile_files: {0}".format(args.tile_files)
-    print "corr_files: {0}".format(args.corr_files)
+    print("tile_files: {0}".format(args.tile_files))
+    print("corr_files: {0}".format(args.corr_files))
 
     optimize_layers_elastic(args.tile_files, args.corr_files,
-        args.output_dir, args.max_layer_distance,
-        conf=args.conf_file_name, 
-        skip_layers=args.skip_layers, threads_num=args.threads_num)
+                            args.output_dir, args.max_layer_distance,
+                            skip_layers=args.skip_layers, threads_num=args.threads_num)
+
 
 if __name__ == '__main__':
     main()

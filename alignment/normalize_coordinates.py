@@ -1,9 +1,15 @@
-import sys
 import os
 import glob
 import argparse
-from ..common.bounding_box import BoundingBox
+from common.bounding_box import BoundingBox
 import json
+from common import utils
+
+overall_args = utils.load_json_file('../arguments/overall_args.json')
+utils.create_dir(overall_args["base"]["workspace"])
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
+                                     overall_args["base"]["running_mode"])
+
 
 def add_transformation(in_file, out_file, transform, deltas):
     # load the current json file
@@ -27,14 +33,14 @@ def add_transformation(in_file, out_file, transform, deltas):
         json.dump(data, f, indent=4)
  
 
-def normalize_coordinates(tile_fnames_or_dir, output_dir):
+def normalize_coordinates(tile_absolute_path, output_dir):
     # Get all the files that need to be normalized
     all_files = []
 
-    print "Reading {}".format(tile_fnames_or_dir)
-    for file_or_dir in tile_fnames_or_dir:
+    log_controller.debug("Reading {}".format(tile_absolute_path))
+    for file_or_dir in tile_absolute_path:
         if not os.path.exists(file_or_dir):
-            print "{0} does not exist (file/directory), skipping".format(file_or_dir)
+            log_controller.debug("{0} does not exist (file/directory), skipping".format(file_or_dir))
             continue
 
         if os.path.isdir(file_or_dir):
@@ -44,10 +50,10 @@ def normalize_coordinates(tile_fnames_or_dir, output_dir):
             all_files.append(file_or_dir)
 
     if len(all_files) == 0:
-        print "No files for normalization found. Exiting."
+        log_controller.debug("No files for normalization found. Exiting.")
         return
 
-    print "Normalizing coordinates of {0} files".format(len(all_files))
+    log_controller.debug("Normalizing coordinates of {0} files".format(len(all_files)))
 
     # Retrieve the bounding box of these files
     entire_image_bbox = None
@@ -58,28 +64,28 @@ def normalize_coordinates(tile_fnames_or_dir, output_dir):
         for f in all_files:
             entire_image_bbox.extend(BoundingBox.read_bbox_grep(f))
     
-    print "Entire 3D image bounding box: {}".format(entire_image_bbox)
+    log_controller.debug("Entire 3D image bounding box: {}".format(entire_image_bbox))
 
     # Set the translation transformation
-    deltaX = entire_image_bbox.from_x
-    deltaY = entire_image_bbox.from_y
+    delta_x = entire_image_bbox.from_x
+    delta_y = entire_image_bbox.from_y
 
     # TODO - use models to create the transformation
     transform = {
-            "className" : "mpicbg.trakem2.transform.TranslationModel2D",
-            "dataString" : "{0} {1}".format(-deltaX, -deltaY)
+            "className": "mpicbg.trakem2.transform.TranslationModel2D",
+            "dataString": "{0} {1}".format(-delta_x, -delta_y)
         }
 
     # Add the transformation to each tile in each tilespec
     for in_file in all_files:
         out_file = os.path.join(output_dir, os.path.basename(in_file))
-        add_transformation(in_file, out_file, transform, [deltaX, deltaY])
-
+        add_transformation(in_file, out_file, transform, [delta_x, delta_y])
 
 
 def main():
     # Command line parser
-    parser = argparse.ArgumentParser(description='Given a list of tilespec file names, normalizes all the tilepecs to a single coordinate system starting from (0,0).')
+    parser = argparse.ArgumentParser(description='Given a list of tilespec file names, normalizes '
+                                                 'all the tilespecs to a single coordinate system starting from (0,0).')
     parser.add_argument('tile_files_or_dirs', metavar='tile_files_or_dirs', type=str, nargs='+',
                         help='a list of json files that need to be normalized or a directories of json files')
     parser.add_argument('-o', '--output_dir', type=str, 
@@ -90,6 +96,6 @@ def main():
 
     normalize_coordinates(args.tile_files_or_dirs, args.output_dir)
 
+
 if __name__ == '__main__':
     main()
-

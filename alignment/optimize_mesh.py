@@ -89,6 +89,7 @@ class Mesh(object):
 
         return self.triangulation.simplices[simplex_indices].astype(np.uint32), barys
 
+
 def linearize_grad(positions, gradients):
     '''perform a least-squares fit, then return the values from that fit'''
     positions = np.hstack((positions, np.ones((positions.shape[0], 1))))
@@ -96,6 +97,7 @@ def linearize_grad(positions, gradients):
     XTY = np.dot(positions.T, gradients)
     Beta = np.dot(np.linalg.inv(XTX), XTY)
     return np.dot(positions, Beta)
+
 
 def blend(a, b, t):
     '''at t=0, return a, at t=1, return b'''
@@ -123,6 +125,7 @@ def mean_offsets(meshes, links, stop_at_ts, plot=False):
         #print(np.mean(lens), np.min(lens), np.max(lens))
         means.append(np.median(lens))
     return np.mean(means)
+
 
 def ts_mean_offsets(meshes, links, ts, plot=False):
     means = []
@@ -165,6 +168,7 @@ def plot_offsets(meshes, links, ts, fname_prefix):
         #pylab.scatter(pts1[:, 0], pts1[:, 1])
         #pylab.gca().autoscale()
         pylab.savefig(fname)
+
 
 def plot_points(pts, fname):
     pylab.figure()
@@ -239,7 +243,6 @@ def Haffine_from_points(fp, tp):
     return m[:2,:2].T, m[:2, 2] # rotation part (transposed) and translation
 
 
-
 def get_transform_matrix(pts1, pts2, type):
     if type == 1:
         return align_rigid(pts1, pts2)
@@ -248,6 +251,7 @@ def get_transform_matrix(pts1, pts2, type):
     else:
         print("Unsupported transformation model type")
         return None
+
 
 def optimize_meshes_links(meshes, links, layers, conf_dict={}):
     # set default values
@@ -406,6 +410,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
 
     return out_positions
 
+
 def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     meshes = {}
 
@@ -462,10 +467,3 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     gc.collect()
  
     return optimize_meshes_links(meshes, links, layers, conf_dict)
-
-
-if __name__ == '__main__':
-    new_positions = optimize_meshes(sys.argv[1:-1], 1500)
-
-    out_file = sys.argv[-1]
-    json.dump(new_positions, open(out_file, "w"), indent=1)

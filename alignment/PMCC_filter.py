@@ -1,4 +1,3 @@
-import sys
 import cv2
 import numpy as np
 from scipy.ndimage.filters import maximum_filter
@@ -9,10 +8,10 @@ FAIL_PMCC_CURVATURE_TOO_HIGH = 2
 FAIL_PMCC_MAXRATIO_TOO_HIGH = 3
 FAIL_PMCC_NOT_LOCALIZED = 4
 
+
 def PMCC_match(image, template, min_correlation=0.2, maximal_curvature_ratio=10, maximal_ROD=0.9):
     # compute the correlation image
     correlation_image = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
-    # pylab.imshow((correlation_image + 1) / 2.0)
 
     # find local maxima
     maxima_mask = (correlation_image == maximum_filter(correlation_image, size=3))
@@ -62,15 +61,3 @@ def PMCC_match(image, template, min_correlation=0.2, maximal_curvature_ratio=10,
         return None, FAIL_PMCC_NOT_LOCALIZED, 0
 
     return True, (mi + oy, mj + ox), maxima_values[-1]
-
-if __name__ == '__main__':
-    # template = cv2.imread(sys.argv[1], 0)  # flags=0 -> grayscale
-    image = cv2.imread(sys.argv[1], 0)
-    image_resized = cv2.resize(image, ((image.shape[0] / 2, image.shape[1] / 2)))
-    template = image_resized[475:, 315:][:50, :50].copy()
-
-    # force .5 pixel shift
-    image = image[1:, 1:]
-    image = cv2.resize(image, ((image.shape[0] / 2, image.shape[1] / 2)))
-
-    print(PMCC_match(image, template))

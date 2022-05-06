@@ -4,17 +4,14 @@ import os
 import numpy as np
 import json
 import time
-import sys
 from scipy.spatial import distance
 from scipy import spatial
 import cv2
 import argparse
-from ..common import utils
-from ..common.bounding_box import BoundingBox
+from common import utils
+from common.bounding_box import BoundingBox
 import PMCC_filter
 import multiprocessing as mp
-#import pyximport
-#pyximport.install()
 from rh_renderer.tilespec_affine_renderer import TilespecAffineRenderer
 import logging
 
@@ -244,8 +241,8 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
     # Read the tilespecs
     tiles_fname1 = os.path.abspath(tiles_fname1)
     tiles_fname2 = os.path.abspath(tiles_fname2)
-    ts1 = utils.load_tilespecs(tiles_fname1)
-    ts2 = utils.load_tilespecs(tiles_fname2)
+    ts1 = utils.load_json_file(tiles_fname1)
+    ts2 = utils.load_json_file(tiles_fname2)
     indexed_ts1 = utils.index_tilespec(ts1)
     indexed_ts2 = utils.index_tilespec(ts2)
 
