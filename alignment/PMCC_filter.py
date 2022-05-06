@@ -5,7 +5,7 @@ from scipy.ndimage.filters import maximum_filter
 FAIL_PMCC_SCORE_TOO_LOW = 0
 FAIL_PMCC_ON_EDGE = 1
 FAIL_PMCC_CURVATURE_TOO_HIGH = 2
-FAIL_PMCC_MAXRATIO_TOO_HIGH = 3
+FAIL_PMCC_MAX_RATIO_TOO_HIGH = 3
 FAIL_PMCC_NOT_LOCALIZED = 4
 
 
@@ -23,7 +23,7 @@ def PMCC_match(image, template, min_correlation=0.2, maximal_curvature_ratio=10,
 
     # TrakEM2 code uses (1 + 2nd_best) / (1 + best) for this test...?
     if (maxima_values.size > 1) and (maxima_values[-2] / maxima_values[-1] > maximal_ROD):
-        return None, FAIL_PMCC_MAXRATIO_TOO_HIGH, 0
+        return None, FAIL_PMCC_MAX_RATIO_TOO_HIGH, 0
 
     # find the maximum location
     mi, mj = np.unravel_index(np.argmax(correlation_image), correlation_image.shape)

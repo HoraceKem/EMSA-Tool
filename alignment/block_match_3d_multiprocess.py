@@ -24,7 +24,6 @@ logger_handler.setFormatter(logger_formatter)
 logger.addHandler(logger_handler)
 
 
-
 def get_mfov_centers_from_json(indexed_ts):
     mfov_centers = {}
     for mfov in indexed_ts.keys():

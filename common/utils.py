@@ -123,6 +123,17 @@ def load_json_file(json_file_path: str):
     return json_contents
 
 
+def save_json_file(output_json_file_path: str, json_contents):
+    """
+    Save the contents into json file
+    :param output_json_file_path: 
+    :param json_contents: 
+    :return: 
+    """
+    with open(output_json_file_path, 'w') as f:
+        json.dump(json_contents, f, sort_keys=True, indent=4)
+
+
 def index_tilespec(tilespecs: list) -> dict:
     """
     Given a section tilespecs returns a dictionary of [mfov][tile_index] to the tile's tilespec
