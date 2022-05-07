@@ -1,0 +1,30 @@
+import os
+import sys
+import subprocess
+import numpy
+
+if sys.platform == "darwin":
+    os.environ["CC"] = "gcc-4.9"
+
+flags = subprocess.check_output(['pkg-config', '--cflags-only-I', 'opencv'])
+include_dirs_list = [flag[2:] for flag in flags.split()]
+include_dirs_list.append('.')
+include_dirs_list.append(os.path.dirname(os.path.abspath(__file__)))
+include_dirs_list.append(numpy.get_include())
+flags = subprocess.check_output(['pkg-config', '--libs-only-L', 'opencv'])
+library_dirs_list = flags
+flags = subprocess.check_output(['pkg-config', '--libs', 'opencv'])
+libraries_list = []
+for flag in flags.split():
+    libraries_list.append(flag)
+
+def make_ext(modname, pyxfilename):
+    from distutils.extension import Extension
+    return Extension(name=modname,
+                     sources=[pyxfilename, 'ImagesComposer.cpp', 'detail/seam_finders.cpp', 'detail/exposure_compensate.cpp', 'detail/blenders.cpp'],
+                     language="c++",
+                     include_dirs=include_dirs_list,
+                     extra_compile_args=['-O3', '--verbose'],
+                     extra_objects=libraries_list
+                    )
+
