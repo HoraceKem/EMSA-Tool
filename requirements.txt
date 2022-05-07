@@ -1,6 +1,10 @@
+numba==0.55.1
 numpy==1.21.6
 scipy==1.8.0
 termcolor==1.1.0
 pymage-size==1.4.1
 scikit-learn==1.0.2
 progressbar==2.5
+scikit-image==0.19.2
+h5py==3.6.0
+matplotlib==3.5.2
