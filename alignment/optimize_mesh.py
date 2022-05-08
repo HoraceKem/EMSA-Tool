@@ -9,8 +9,8 @@ from sklearn.utils.extmath import randomized_svd
 import pylab
 from matplotlib import collections as mc
 import gc
-from ..common.bounding_box import BoundingBox
-from ..common import utils
+from common.bounding_box import BoundingBox
+from common import utils
 import datetime
 
 import pyximport
@@ -171,7 +171,6 @@ def plot_offsets(meshes, links, ts, fname_prefix):
 def plot_points(pts, fname):
     pylab.figure()
     pylab.scatter(pts[:, 0], pts[:, 1])
-    #pylab.gca().autoscale()
     pylab.savefig(fname)
 
 
@@ -251,28 +250,11 @@ def get_transform_matrix(pts1, pts2, type):
         return None
 
 
-def optimize_meshes_links(meshes, links, layers, conf_dict={}):
-    # set default values
-    cross_slice_weight = conf_dict.get("cross_slice_weight", 1.0)
-    cross_slice_winsor = conf_dict.get("cross_slice_winsor", 20)
-    intra_slice_weight = conf_dict.get("intra_slice_weight", 1.0)
-    intra_slice_winsor = conf_dict.get("intra_slice_winsor", 200)
-    intra_slice_weight = 3.0
-
-    # block_size = conf_dict.get("block_size", 35)
-    # block_step = conf_dict.get("block_step", 25)
-    # min_iterations = conf_dict.get("min_iterations", 200)
-    max_iterations = conf_dict.get("max_iterations", 5000)
-    # mean_offset_threshold = conf_dict.get("mean_offset_threshold", 5)
-    # num_threads = conf_dict.get("optimization_threads", 8)
-    min_stepsize = conf_dict.get("min_stepsize", 1e-20)
-    assumed_model = conf_dict.get("assumed_model", 3) # 0 - Translation (not supported), 1 - Rigid, 2 - Similarity (not supported), 3 - Affine
-
-    debugged_layers = conf_dict.get("debugged_layers", [])
-    print("Debugged layers: {}".format(debugged_layers))
+def optimize_meshes_links(meshes, links, layers, align_args):
+    print("Debugged layers: {}".format(align_args["debugged_layers"]))
     DEBUG_DIR = None
-    if len(debugged_layers) > 0:
-        debugged_layers = map(int, debugged_layers.split(','))
+    if len(align_args["debugged_layers"]) > 0:
+        align_args["debugged_layers"] = map(int, align_args["debugged_layers"].split(','))
         DEBUG_DIR = os.path.join("debug_optimization", "logs_{}".format(datetime.datetime.now().isoformat()))
         if not os.path.exists(DEBUG_DIR):
             os.makedirs(DEBUG_DIR)
@@ -287,7 +269,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
 
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
-        if layers[active_ts] in debugged_layers:
+        if layers[active_ts] in align_args["debugged_layers"]:
             pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
             #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "pre_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
 
@@ -302,9 +284,9 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
                 pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
                 pts2 = np.einsum('ijk,ij->ik', meshes[ts2].pts[idx2], w2)
                 if ts1 == active_ts:
-                    cur_rot, cur_tran = get_transform_matrix(pts1, pts2, assumed_model)
+                    cur_rot, cur_tran = get_transform_matrix(pts1, pts2, align_args["assumed_model"])
                 else:
-                    cur_rot, cur_tran = get_transform_matrix(pts2, pts1, assumed_model)
+                    cur_rot, cur_tran = get_transform_matrix(pts2, pts1, align_args["assumed_model"])
                 # Average the affine transformation by the number of matches between the two sections
                 rot += pts1.shape[0] * cur_rot
                 tran += pts1.shape[0] * cur_tran
@@ -322,7 +304,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
 
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
-        if layers[active_ts] in debugged_layers:
+        if layers[active_ts] in align_args["debugged_layers"]:
             pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
             # plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
 
@@ -335,7 +317,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
     old_pts = None
 
 
-    for iter in range(max_iterations):
+    for iter in range(align_args["max_iterations"]):
         cost = 0.0
 
         gradients = {ts: np.zeros_like(mesh.pts) for ts, mesh in meshes.iteritems()}
@@ -344,13 +326,14 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
         for ts in meshes:
             cost += mesh_derivs_multibeam.internal_grad(meshes[ts].pts, gradients[ts],
                                               *((structural_meshes[ts]) +
-                                                (intra_slice_weight, intra_slice_winsor)))
+                                                (align_args["intra_slice_weight"], align_args["intra_slice_winsor"])))
         for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
             cost += mesh_derivs_multibeam.external_grad(meshes[ts1].pts, meshes[ts2].pts,
                                               gradients[ts1], gradients[ts2],
                                               idx1, w1,
                                               idx2, w2,
-                                              cross_slice_weight / float(abs(layers[ts1] - layers[ts2])), cross_slice_winsor)
+                                              align_args["cross_slice_weight"] / float(abs(layers[ts1] - layers[ts2])),
+                                                        align_args["cross_slice_winsor"])
 
         if cost < prev_cost and not np.isinf(cost):
             prev_cost = cost
@@ -376,10 +359,10 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
             print("iter {}: C: {}, MO: {}, S: {}".format(iter, cost, mean_offsets(meshes, links, sorted_slices[-1], plot=False), stepsize))
 
         # Save animation for debugging
-        if len(debugged_layers) > 0:
+        if len(align_args["debugged_layers"]) > 0:
             # TODO - make this faster by just iterating over the debugged layers
             for active_ts in sorted_slices:
-                if layers[active_ts] in debugged_layers:
+                if layers[active_ts] in align_args["debugged_layers"]:
                     pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_iter{}_{}.pickle".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))), "w"))
                     #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_iter{}_{}.png".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))))
 
@@ -388,7 +371,7 @@ def optimize_meshes_links(meshes, links, layers, conf_dict={}):
             assert not np.any(~ np.isfinite(meshes[ts].pts))
 
         # If stepsize is too small (won't make any difference), stop the iterations
-        if stepsize < min_stepsize:
+        if stepsize < align_args["min_stepsize"]:
             break
     print("last MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
 

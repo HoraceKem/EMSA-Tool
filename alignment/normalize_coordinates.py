@@ -1,6 +1,5 @@
 import os
 import glob
-import argparse
 from common.bounding_box import BoundingBox
 import json
 from common import utils
@@ -11,9 +10,17 @@ log_controller = utils.LogController('alignment', os.path.join(overall_args["bas
                                      overall_args["base"]["running_mode"])
 
 
-def add_transformation(in_file, out_file, transform, deltas):
+def add_transformation(input_file_path: str, output_file_path: str, transform: dict, deltas: list):
+    """
+    Add transformation to the tilespecs json file
+    :param input_file_path:
+    :param output_file_path:
+    :param transform:
+    :param deltas:
+    :return:
+    """
     # load the current json file
-    with open(in_file, 'r') as f:
+    with open(input_file_path, 'r') as f:
         data = json.load(f)
 
     if deltas[0] != 0.0 and deltas[1] != 0.0:
@@ -29,16 +36,22 @@ def add_transformation(in_file, out_file, transform, deltas):
                 bbox_new = [bbox[0] - deltas[0], bbox[1] - deltas[0], bbox[2] - deltas[1], bbox[3] - deltas[1]]
                 tile["bbox"] = bbox_new
 
-    with open(out_file, 'w') as f:
+    with open(output_file_path, 'w') as f:
         json.dump(data, f, indent=4)
  
 
-def normalize_coordinates(tile_absolute_path, output_dir):
+def normalize_coordinates(tile_file_path: str, output_folder_path: str):
+    """
+    Normalize coordinates
+    :param tile_file_path:
+    :param output_folder_path:
+    :return:
+    """
     # Get all the files that need to be normalized
     all_files = []
 
-    log_controller.debug("Reading {}".format(tile_absolute_path))
-    for file_or_dir in tile_absolute_path:
+    log_controller.debug("Reading {}".format(tile_file_path))
+    for file_or_dir in tile_file_path:
         if not os.path.exists(file_or_dir):
             log_controller.debug("{0} does not exist (file/directory), skipping".format(file_or_dir))
             continue
@@ -78,24 +91,5 @@ def normalize_coordinates(tile_absolute_path, output_dir):
 
     # Add the transformation to each tile in each tilespec
     for in_file in all_files:
-        out_file = os.path.join(output_dir, os.path.basename(in_file))
+        out_file = os.path.join(output_folder_path, os.path.basename(in_file))
         add_transformation(in_file, out_file, transform, [delta_x, delta_y])
-
-
-def main():
-    # Command line parser
-    parser = argparse.ArgumentParser(description='Given a list of tilespec file names, normalizes '
-                                                 'all the tilespecs to a single coordinate system starting from (0,0).')
-    parser.add_argument('tile_files_or_dirs', metavar='tile_files_or_dirs', type=str, nargs='+',
-                        help='a list of json files that need to be normalized or a directories of json files')
-    parser.add_argument('-o', '--output_dir', type=str, 
-                        help='an output directory (default: ./after_norm)',
-                        default='./after_norm')
-
-    args = parser.parse_args()
-
-    normalize_coordinates(args.tile_files_or_dirs, args.output_dir)
-
-
-if __name__ == '__main__':
-    main()

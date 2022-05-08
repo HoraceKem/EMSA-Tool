@@ -1,16 +1,13 @@
-# Setup
-from __future__ import print_function
 import os
 import numpy as np
 import json
-import time
 from scipy.spatial import distance
 from scipy import spatial
 from common import utils
 from common.bounding_box import BoundingBox
 import PMCC_filter
 import multiprocessing as mp
-from rh_renderer.tilespec_affine_renderer import TilespecAffineRenderer
+from renderer.tilespec_affine_renderer import TilespecAffineRenderer
 
 overall_args = utils.load_json_file('../arguments/overall_args.json')
 utils.create_dir(overall_args["base"]["workspace"])
@@ -32,18 +29,18 @@ def get_mfov_centers_from_json(indexed_ts):
     return mfov_centers
 
 
-def get_best_transformations(pre_mfov_matches, tiles_fname1, tiles_fname2, mfov_centers1, mfov_centers2, sorted_mfovs1):
+def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_file_path2, mfov_centers1, mfov_centers2, sorted_mfovs1):
     """Returns a dictionary that maps a mfov number to a matrix that best describes the transformation to
     the other section. As not all mfov's may be matched, some mfovs will be missing from the dictionary.
     If the given tiles file names are reversed_flag, an inverted matrix is returned."""
     transforms = {}
-    if tiles_fname1 == pre_mfov_matches["tilespec1"] and tiles_fname2 == pre_mfov_matches["tilespec2"]:
+    if tilespecs_file_path1 == pre_mfov_matches["tilespec1"] and tilespecs_file_path2 == pre_mfov_matches["tilespec2"]:
         reversed_flag = False
-    elif tiles_fname1 == pre_mfov_matches["tilespec2"] and tiles_fname2 == pre_mfov_matches["tilespec1"]:
+    elif tilespecs_file_path1 == pre_mfov_matches["tilespec2"] and tilespecs_file_path2 == pre_mfov_matches["tilespec1"]:
         reversed_flag = True
     else:
         log_controller.error("Error: could not find pre_matches between tilespecs"
-                             " {} and {} (found tilespecs {} and {} instead!).".format(tiles_fname1, tiles_fname2,
+                             " {} and {} (found tilespecs {} and {} instead!).".format(tilespecs_file_path1, tilespecs_file_path2,
                                                                                        pre_mfov_matches["tilespec1"],
                                                                                        pre_mfov_matches["tilespec2"]))
         return {}
@@ -87,14 +84,14 @@ def get_best_transformations(pre_mfov_matches, tiles_fname1, tiles_fname2, mfov_
 
 
 def find_best_mfov_transformation(mfov, best_transformations, mfov_centers):
-    """Returns a matrix that represnets the best transformation for a given mfov to the other section"""
+    """Returns a matrix that represents the best transformation for a given mfov to the other section"""
     if mfov in best_transformations.keys():
         return best_transformations[mfov]
     # Need to find a more intelligent way to do this, but this suffices for now
     # Uses transformation of another mfov (should be changed to the closest, unvisited mfov)
     mfov_center = mfov_centers[mfov]
     trans_keys = best_transformations.keys()
-    closest_mfov_idx = np.argmin([distance.euclidean(mfov_center, mfov_centers[mfovk]) for mfovk in trans_keys])
+    closest_mfov_idx = np.argmin([distance.euclidean(mfov_center, mfov_centers[mfov_key]) for mfov_key in trans_keys])
     # ** Should we add this transformation? maybe not, because we don't want to get a different result when a few
     # ** missing mfov matches occur and the "best transformation" can change when the centers are updated
     return best_transformations[trans_keys[closest_mfov_idx]]
@@ -174,10 +171,10 @@ def fetch_and_run(q_jobs, add_result_func, img1_to_img2_transform, scaling, temp
     log_controller.debug("Process {} is finished".format(os.getpid()))
 
 
-def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, out_fname,
+def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_matches_file_path, output_file_path,
                                targeted_mfov, align_args, processes_num=1):
-    log_controller.debug("Block-Matching+PMCC layers: {} with {} targeted mfov: {}".format(tiles_fname1,
-                                                                                           tiles_fname2,
+    log_controller.debug("Block-Matching+PMCC layers: {} with {} targeted mfov: {}".format(tilespecs_file_path1,
+                                                                                           tilespecs_file_path2,
                                                                                            targeted_mfov))
 
     # Parameters for the matching
@@ -195,10 +192,10 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
     max_rod = align_args["maximal_ROD"]
 
     # Read the tilespecs
-    tiles_fname1 = os.path.abspath(tiles_fname1)
-    tiles_fname2 = os.path.abspath(tiles_fname2)
-    ts1 = utils.load_json_file(tiles_fname1)
-    ts2 = utils.load_json_file(tiles_fname2)
+    tilespecs_file_path1 = os.path.abspath(tilespecs_file_path1)
+    tilespecs_file_path2 = os.path.abspath(tilespecs_file_path2)
+    ts1 = utils.load_json_file(tilespecs_file_path1)
+    ts2 = utils.load_json_file(tilespecs_file_path2)
     indexed_ts1 = utils.index_tilespec(ts1)
     indexed_ts2 = utils.index_tilespec(ts2)
 
@@ -211,19 +208,19 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
     mfov_centers2 = get_mfov_centers_from_json(indexed_ts2)
 
     # Load the preliminary matches
-    with open(pre_matches_fname, 'r') as data_matches:
+    with open(pre_matches_file_path, 'r') as data_matches:
         mfov_pre_matches = json.load(data_matches)
     if len(mfov_pre_matches["matches"]) == 0:
         log_controller.warning("No matches were found in pre-matching, aborting Block-Matching"
-                               " proces between layers: {} and {}".format(tiles_fname1, tiles_fname2))
+                               " proces between layers: {} and {}".format(tilespecs_file_path1, tilespecs_file_path2))
         return
-    best_transformations = get_best_transformations(mfov_pre_matches, tiles_fname1, tiles_fname2,
+    best_transformations = get_best_transformations(mfov_pre_matches, tilespecs_file_path1, tilespecs_file_path2,
                                                     mfov_centers1, mfov_centers2, sorted_mfovs1)
 
     # Create output dictionary
     out_jsonfile = {
-        'tilespec1': tiles_fname1,
-        'tilespec2': tiles_fname2
+        'tilespec1': tilespecs_file_path1,
+        'tilespec2': tilespecs_file_path2
     }
 
     # Create the (lazy) renderers for the two sections
@@ -232,7 +229,7 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
 
     # Generate a hexagonal grid according to the first section's bounding box
     log_controller.debug("Generating Hexagonal Grid")
-    bb = BoundingBox.read_bbox(tiles_fname1)
+    bb = BoundingBox.read_bbox(tilespecs_file_path1)
     log_controller.debug("bounding_box: {}".format(bb))
     hex_grid = utils.generate_hexagonal_grid(bb, hex_spacing)
     # a single mfov is targeted, so restrict the hexagonal grid to that mfov locations
@@ -318,7 +315,7 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
                                                                  on_section_points_num))
 
     # Save the output
-    log_controller.debug("Saving output to: {}".format(out_fname))
+    log_controller.debug("Saving output to: {}".format(output_file_path))
     out_jsonfile['mesh'] = hex_grid
     if targeted_mfov != -1:
         out_jsonfile['mfov1'] = targeted_mfov
@@ -334,7 +331,7 @@ def match_layers_pmcc_matching(tiles_fname1, tiles_fname2, pre_matches_fname, ou
         final_point_matches.append(record)
 
     out_jsonfile['pointmatches'] = final_point_matches
-    with open(out_fname, 'w') as out:
+    with open(output_file_path, 'w') as out:
         json.dump(out_jsonfile, out, indent=4)
 
     log_controller.debug("Done")

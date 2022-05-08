@@ -24,5 +24,24 @@
         "min_correlation": 0.2,
         "maximal_curvature_ratio": 10,
         "maximal_ROD": 0.9
+    },
+    "PMCC":
+    {
+        "fail_PMCC_score_too_low": 0,
+        "fail_PMCC_on_edge": 1,
+        "fail_PMCC_curvature_too_high": 2,
+        "fail_PMCC_max_ratio_too_high": 3,
+        "fail_PMCC_not_localized":4
+    },
+    "optimize_mesh":
+    {
+        "cross_slice_weight": 1.0,
+        "cross_slice_winsor": 20,
+        "intra_slice_weight": 1.0,
+        "intra_slice_winsor": 200,
+        "max_iterations": 5000,
+        "min_stepsize": 1e-20,
+        "assumed_model": 3,
+
     }
 }
