@@ -6,14 +6,14 @@
 import cv2
 import numpy as np
 import math
-from rh_renderer.models import AffineModel
+from common.trans_models import AffineModel
 import scipy.interpolate as spint
 import scipy.spatial.qhull as qhull
 from scipy.spatial import ConvexHull
 import time
 
-class SingleTileRendererBase(object):
 
+class SingleTileRendererBase(object):
     def __init__(self, width, height, 
                  bbox=None,
                  transformation_models=[],

@@ -15,25 +15,38 @@ log_controller = utils.LogController('alignment', os.path.join(overall_args["bas
                                      overall_args["base"]["running_mode"])
 
 
-def get_mfov_centers_from_json(indexed_ts):
+def get_mfov_centers_from_json(indexed_tilespecs: dict) -> dict:
+    """
+    Get mfov centers
+    :param indexed_tilespecs:
+    :return:
+    """
     mfov_centers = {}
-    for mfov in indexed_ts.keys():
-        mfov_tiles = indexed_ts[mfov].values()
-        tile_bboxes = zip(*[tile["bbox"] for tile in mfov_tiles])
+    for mfov in indexed_tilespecs.keys():
+        mfov_tiles = indexed_tilespecs[mfov].values()
+        tile_bboxes = list(zip(*[tile["bbox"] for tile in mfov_tiles]))
         min_x = min(tile_bboxes[0])
         max_x = max(tile_bboxes[1])
         min_y = min(tile_bboxes[2])
         max_y = max(tile_bboxes[3])
-        # center = [(min_x + min_y) / 2.0, (min_y + max_y) / 2.0], but w/o overflow
         mfov_centers[mfov] = np.array([(min_x / 2.0 + max_x / 2.0, min_y / 2.0 + max_y / 2.0)])
     return mfov_centers
 
 
-def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_file_path2, mfov_centers1,
-                             mfov_centers2, sorted_mfovs1):
-    """Returns a dictionary that maps a mfov number to a matrix that best describes the transformation to
+def get_best_transformations(pre_mfov_matches: dict, tilespecs_file_path1: str, tilespecs_file_path2: str,
+                             mfov_centers1: dict, mfov_centers2: dict, sorted_mfovs1):
+    """
+    Returns a dictionary that maps a mfov number to a matrix that best describes the transformation to
     the other section. As not all mfov's may be matched, some mfovs will be missing from the dictionary.
-    If the given tiles file names are reversed_flag, an inverted matrix is returned."""
+    If the given tiles file names are reversed_flag, an inverted matrix is returned
+    :param pre_mfov_matches:
+    :param tilespecs_file_path1:
+    :param tilespecs_file_path2:
+    :param mfov_centers1:
+    :param mfov_centers2:
+    :param sorted_mfovs1:
+    :return:
+    """
     transforms = {}
     if tilespecs_file_path1 == pre_mfov_matches["tilespec1"] and tilespecs_file_path2 == pre_mfov_matches["tilespec2"]:
         reversed_flag = False
@@ -78,7 +91,7 @@ def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_f
             # Uses transformation of another mfov (should be changed to the closest, unvisited mfov)
             mfov_center = mfov_centers1[m]
             closest_mfov_idx = np.argmin([distance.euclidean(mfov_center, mfov_centers1[mfov]) for mfov in trans_keys])
-            estimated_transforms[m] = transforms[trans_keys[closest_mfov_idx]]
+            estimated_transforms[m] = transforms[list(trans_keys)[closest_mfov_idx]]
 
     transforms.update(estimated_transforms)
 
@@ -86,7 +99,13 @@ def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_f
 
 
 def find_best_mfov_transformation(mfov, best_transformations, mfov_centers):
-    """Returns a matrix that represents the best transformation for a given mfov to the other section"""
+    """
+    Returns a matrix that represents the best transformation for a given mfov to the other section
+    :param mfov:
+    :param best_transformations:
+    :param mfov_centers:
+    :return:
+    """
     if mfov in best_transformations.keys():
         return best_transformations[mfov]
     # Need to find a more intelligent way to do this, but this suffices for now
@@ -99,11 +118,11 @@ def find_best_mfov_transformation(mfov, best_transformations, mfov_centers):
     return best_transformations[trans_keys[closest_mfov_idx]]
 
 
-def get_tile_centers_from_json(ts):
+def get_tile_centers_from_json(tilespecs):
     tiles_centers = []
-    for tile in ts:
-        center_x = (tile["bbox"][0] + tile["bbox"][1]) / 2.0
-        center_y = (tile["bbox"][2] + tile["bbox"][3]) / 2.0
+    for tilespec in tilespecs:
+        center_x = (tilespec["bbox"][0] + tilespec["bbox"][1]) / 2.0
+        center_y = (tilespec["bbox"][2] + tilespec["bbox"][3]) / 2.0
         tiles_centers.append(np.array([center_x, center_y]))
     return tiles_centers
 

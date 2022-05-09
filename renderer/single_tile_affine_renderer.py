@@ -5,9 +5,8 @@ import cv2
 import numpy as np
 import math
 
-class SingleTileAffineRenderer:
-    
 
+class SingleTileAffineRenderer:
     def __init__(self, img_path, width, height, 
                  bbox=None,
                  transformation_models=[],

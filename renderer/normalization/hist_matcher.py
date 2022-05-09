@@ -2,10 +2,10 @@
 # (next step is to take other images and match their histogram to the "normalized" histogram).
 import numpy as np
 import cv2
-import cPickle as pkl
+import pickle as pkl
+
 
 class HistMatcher(object):
-
     def __init__(self, histogram=None, histogram_fname=None, saturate_low_pct=0.0, saturate_high_pct=0.0):
         # Make sure not both histogram and histogram_fname are given as parameters
         assert(not (histogram is not None and histogram_fname is not None))

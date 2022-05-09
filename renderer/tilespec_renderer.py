@@ -1,16 +1,14 @@
 # Allows rendering a given tilespec
 from .multiple_tiles_renderer import MultipleTilesRenderer, BlendType
 from .single_tile_renderer import SingleTileRenderer, SingleTileStaticRenderer
-import json
 import numpy as np
 from common import trans_models
 import time
 
-class TilespecRenderer:
 
+class TilespecRenderer:
     def __init__(self, tilespec, dtype=np.uint8, hist_adjuster=None, dynamic=True, blend_type=BlendType.MULTI_BAND_SEAM):
         st_time = time.time()
-
         if blend_type == BlendType.NO_BLENDING: # NO_BLENDING
             compute_mask = False
             compute_distances = False

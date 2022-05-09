@@ -2,13 +2,13 @@ import sys
 import os
 import cv2
 import numpy as np
-import ujson as json
-from rh_renderer import models
+import json
+from common import trans_models as models
 from collections import defaultdict
 import scipy.optimize
 from lru import LRU
 import itertools
-import cPickle as pickle
+import pickle
 from scipy import spatial
 
 
@@ -28,7 +28,6 @@ class HistogramDiffMinimization(object):
         img_scaled[img_scaled > 255] = 255
         
         return img_scaled.astype(img.dtype)
-
 
     def _parse_tilespec_fname(self):
         with open(self._optimized_ts_fname, 'r') as f:

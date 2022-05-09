@@ -2,7 +2,8 @@
 # (next step is to take other images and match their histogram to the "normalized" histogram).
 import numpy as np
 import cv2
-import cPickle as pkl
+import pickle as pkl
+
 
 class HistMatcher(object):
 
