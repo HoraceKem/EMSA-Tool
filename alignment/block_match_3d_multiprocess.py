@@ -29,20 +29,22 @@ def get_mfov_centers_from_json(indexed_ts):
     return mfov_centers
 
 
-def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_file_path2, mfov_centers1, mfov_centers2, sorted_mfovs1):
+def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_file_path2, mfov_centers1,
+                             mfov_centers2, sorted_mfovs1):
     """Returns a dictionary that maps a mfov number to a matrix that best describes the transformation to
     the other section. As not all mfov's may be matched, some mfovs will be missing from the dictionary.
     If the given tiles file names are reversed_flag, an inverted matrix is returned."""
     transforms = {}
     if tilespecs_file_path1 == pre_mfov_matches["tilespec1"] and tilespecs_file_path2 == pre_mfov_matches["tilespec2"]:
         reversed_flag = False
-    elif tilespecs_file_path1 == pre_mfov_matches["tilespec2"] and tilespecs_file_path2 == pre_mfov_matches["tilespec1"]:
+    elif tilespecs_file_path1 == pre_mfov_matches["tilespec2"] and \
+            tilespecs_file_path2 == pre_mfov_matches["tilespec1"]:
         reversed_flag = True
     else:
         log_controller.error("Error: could not find pre_matches between tilespecs"
-                             " {} and {} (found tilespecs {} and {} instead!).".format(tilespecs_file_path1, tilespecs_file_path2,
-                                                                                       pre_mfov_matches["tilespec1"],
-                                                                                       pre_mfov_matches["tilespec2"]))
+                             " {} and {} (found tilespecs {} and "
+                             "{} instead!).".format(tilespecs_file_path1, tilespecs_file_path2,
+                                                    pre_mfov_matches["tilespec1"], pre_mfov_matches["tilespec2"]))
         return {}
 
     if reversed_flag:
@@ -58,8 +60,8 @@ def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_f
 
         # For each mfov transformed center in section 2, find the closest center, and declare it as a transformation
         closest_centers_idx = kdtree.query(transformed_section_centers2)[1]
-        
-        assert(len(reversed_transformations) == len(closest_centers_idx))
+
+        assert (len(reversed_transformations) == len(closest_centers_idx))
         for closest_idx, reversed_transform in zip(closest_centers_idx, reversed_transformations):
             mfov_num2 = sorted_mfovs1[closest_idx]
             transforms[mfov_num2] = reversed_transform
@@ -77,9 +79,9 @@ def get_best_transformations(pre_mfov_matches, tilespecs_file_path1, tilespecs_f
             mfov_center = mfov_centers1[m]
             closest_mfov_idx = np.argmin([distance.euclidean(mfov_center, mfov_centers1[mfov]) for mfov in trans_keys])
             estimated_transforms[m] = transforms[trans_keys[closest_mfov_idx]]
- 
+
     transforms.update(estimated_transforms)
-           
+
     return transforms
 
 
@@ -121,51 +123,52 @@ def is_point_in_img(tile_ts, point):
     return False
 
 
-def execute_pmcc_matching(img1_center_point, img1_to_img2_transform, scaling, template_size,
-                          search_window_size, img1_scaled_renderer, img2_scaled_renderer,
-                          min_corr, max_curvature, max_rod):
+def execute_pmcc_matching(img1_center_point, img1_to_img2_transform, img1_scaled_renderer,
+                          img2_scaled_renderer, align_args):
     # Assumes that img1_renderer already has the transformation to img2 applied, and is scaled down,
     # and that img2_renderer is already scaled down,
     # and img1_center_point is w/o the transformation to img2 and w/o the scaling
     # Compute the estimated point on img2 with scaling
     img1_center_point_on_img2 = (np.dot(img1_to_img2_transform[:2, :2], img1_center_point) +
-                                 img1_to_img2_transform[:2, 2]) * scaling
+                                 img1_to_img2_transform[:2, 2]) * align_args["block_match"]["scaling"]
 
     # Fetch the template around img1_point (after transformation)
-    template_scaled_side = template_size * scaling / 2
+    template_scaled_side = align_args["block_match"]["template_size"] * align_args["block_match"]["scaling"] / 2
     from_x1, from_y1 = img1_center_point_on_img2 - template_scaled_side
     to_x1, to_y1 = img1_center_point_on_img2 + template_scaled_side
     img1_template, img1_template_start_point = img1_scaled_renderer.crop(from_x1, from_y1, to_x1, to_y1)
-    
+
     # Fetch a large sub-image around img2_point (using search_window_scaled_size)
-    search_window_scaled_side = search_window_size * scaling / 2
+    search_window_size = align_args["block_match"]["search_window_size_scale"] * \
+                         align_args["block_match"]["template_size"]
+    search_window_scaled_side = search_window_size * align_args["block_match"]["scaling"] / 2
     from_x2, from_y2 = img1_center_point_on_img2 - search_window_scaled_side
     to_x2, to_y2 = img1_center_point_on_img2 + search_window_scaled_side
     img2_search_window, img2_search_window_start_point = img2_scaled_renderer.crop(from_x2, from_y2, to_x2, to_y2)
 
     # execute the PMCC match
     # Do template matching
-    result, reason, match_val = PMCC_filter.PMCC_match(img2_search_window, img1_template, min_correlation=min_corr,
-                                                       maximal_curvature_ratio=max_curvature, maximal_ROD=max_rod)
+    result, reason, match_val = PMCC_filter.PMCC_match(img2_search_window, img1_template, align_args)
     if result is not None:
         # Compute the location of the matched point on img2 in non-scaled coordinates
         matched_location_scaled = np.array([reason[1], reason[0]]) + np.array([from_x2, from_y2]) + template_scaled_side
-        img2_center_point = matched_location_scaled / scaling 
+        img2_center_point = matched_location_scaled / align_args["block_match"]["scaling"]
         log_controller.debug("{}: match found: {} and {} (orig assumption: {})".format(
-            os.getpid(), img1_center_point, img2_center_point, img1_center_point_on_img2 / scaling))
+            os.getpid(), img1_center_point, img2_center_point,
+            img1_center_point_on_img2 / align_args["block_match"]["scaling"]))
         return img1_center_point, img2_center_point, match_val
 
     return None
 
 
-def fetch_and_run(q_jobs, add_result_func, img1_to_img2_transform, scaling, template_size,
-                  search_window_size, img1_scaled_renderer, img2_scaled_renderer, min_corr, max_curvature, max_rod):
+def fetch_and_run(q_jobs, add_result_func, img1_to_img2_transform, img1_scaled_renderer,
+                  img2_scaled_renderer, align_args):
     while True:
         job = q_jobs.get(block=True)
         if job is None:
             break
-        r = execute_pmcc_matching(job, img1_to_img2_transform, scaling, template_size, search_window_size,
-                                  img1_scaled_renderer, img2_scaled_renderer, min_corr, max_curvature, max_rod)
+        r = execute_pmcc_matching(job, img1_to_img2_transform,
+                                  img1_scaled_renderer, img2_scaled_renderer, align_args)
         if r is not None:
             add_result_func(r)
     log_controller.debug("Process {} is finished".format(os.getpid()))
@@ -178,18 +181,13 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
                                                                                            targeted_mfov))
 
     # Parameters for the matching
-    hex_spacing = align_args["hex_spacing"]
-    scaling = align_args["scaling"]
-    template_size = align_args["template_size"]
-    search_window_size_scale = align_args["search_window_size_scale"] * template_size
     log_controller.debug("Actual template size: {} and "
-                         "window search size: {} (after scaling)".format(template_size * scaling,
-                                                                         search_window_size_scale * scaling))
-
-    # Parameters for PMCC filtering
-    min_corr = align_args["min_correlation"]
-    max_curvature = align_args["maximal_curvature_ratio"]
-    max_rod = align_args["maximal_ROD"]
+                         "window search size: {} "
+                         "(after scaling)".format(align_args["block_match"]["template_size"] *
+                                                  align_args["block_match"]["scaling"],
+                                                  align_args["block_match"]["search_window_size_scale"] *
+                                                  align_args["block_match"]["template_size"] *
+                                                  align_args["block_match"]["scaling"]))
 
     # Read the tilespecs
     tilespecs_file_path1 = os.path.abspath(tilespecs_file_path1)
@@ -231,7 +229,7 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
     log_controller.debug("Generating Hexagonal Grid")
     bb = BoundingBox.read_bbox(tilespecs_file_path1)
     log_controller.debug("bounding_box: {}".format(bb))
-    hex_grid = utils.generate_hexagonal_grid(bb, hex_spacing)
+    hex_grid = utils.generate_hexagonal_grid(bb, align_args["block_match"]["hex_spacing"])
     # a single mfov is targeted, so restrict the hexagonal grid to that mfov locations
     mfov_tiles = indexed_ts1[targeted_mfov]
     bb_mfov = BoundingBox.read_bbox_from_ts(mfov_tiles.values())
@@ -247,9 +245,9 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
 
     # Scale down the rendered images
     scale_transformation = np.array([
-                                [scaling, 0., 0.],
-                                [0., scaling, 0.]
-                            ])
+        [align_args["block_match"]["scaling"], 0., 0.],
+        [0., align_args["block_match"]["scaling"], 0.]
+    ])
     img1_renderer.add_transformation(scale_transformation)
     img2_renderer.add_transformation(scale_transformation)
 
@@ -262,10 +260,9 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
     mp_manager = mp.Manager()
     q_res = mp_manager.Queue(maxsize=len(hex_grid))
 
-    all_processes = [mp.Process(target=fetch_and_run, args=(q_jobs, lambda x: q_res.put(x), img1_to_img2_transform,
-                                                            scaling, template_size, search_window_size_scale,
-                                                            img1_renderer, img2_renderer, min_corr,
-                                                            max_curvature, max_rod)) for i in range(processes_num - 1)]
+    all_processes = [mp.Process(target=fetch_and_run,
+                                args=(q_jobs, lambda x: q_res.put(x), img1_to_img2_transform,
+                                      img1_renderer, img2_renderer, align_args)) for i in range(processes_num - 1)]
     for p in all_processes:
         p.start()
 
@@ -283,10 +280,10 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
 
         img1_point = np.array(hex_grid[i])
         on_section_points_num += 1
-        
+
         # Perform matching of that point
         q_jobs.put(img1_point)
- 
+
     # Add empty jobs to end the execution of each process
     for i in range(processes_num):
         q_jobs.put(None)
@@ -296,8 +293,7 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
 
     # Use the main process to run jobs like any other process
     fetch_and_run(q_jobs, lambda x: point_matches.append(x), img1_to_img2_transform,
-                  scaling, template_size, search_window_size_scale, img1_renderer,
-                  img2_renderer, min_corr, max_curvature, max_rod)
+                  img1_renderer, img2_renderer, align_args)
 
     # Wait for the termination of the other processes
     log_controller.debug("Waiting for other processes to finish")

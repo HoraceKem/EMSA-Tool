@@ -345,3 +345,26 @@ def generate_hexagonal_grid(bbox: list, spacing: int):
                 continue
             pts.append([int(x_loc + bbox[0]), int(y_loc + bbox[2])])
     return pts
+
+
+def read_layer_from_tilespecs_file(tilespecs_file_path):
+    """
+    Read the layer from a tilespecs json file.
+    One json file should have one and only one layer number
+    :param tilespecs_file_path:
+    :return:
+    """
+    layer = None
+    with open(tilespecs_file_path, 'r') as data_file:
+        data = json.load(data_file)
+    for tile in data:
+        if tile['layer'] is None:
+            raise AssertionError("Error reading layer in one of the tiles in: {0}".format(tilespecs_file_path))
+        if layer is None:
+            layer = tile['layer']
+        if layer != tile['layer']:
+            raise AssertionError("Error when reading tiles from {0} found inconsistent layers "
+                                 "numbers: {1} and {2}".format(tilespecs_file_path, layer, tile['layer']))
+    if layer is None:
+        raise AssertionError("Error reading layers file: {0}. No layers found.".format(tilespecs_file_path))
+    return int(layer)

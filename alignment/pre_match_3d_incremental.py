@@ -135,14 +135,14 @@ def compare_features(section1_pts_descs: list, section2_pts_descs: list, align_a
     if match_points.shape[0] == 0 or match_points.shape[1] == 0:
         return None, 0, 0, 0, len(all_pts1), len(all_pts2)
 
-    model_index = align_args["model_index"]
-    iterations = align_args["iterations"]
-    max_epsilon = align_args["max_epsilon"]
-    min_inlier_ratio = align_args["min_inlier_ratio"]
-    min_num_inlier = align_args["min_num_inlier"]
-    max_trust = align_args["max_trust"]
-    det_delta = align_args["det_delta"]
-    max_stretch = align_args["max_stretch"]
+    model_index = align_args["pre_match"]["model_index"]
+    iterations = align_args["pre_match"]["iterations"]
+    max_epsilon = align_args["pre_match"]["max_epsilon"]
+    min_inlier_ratio = align_args["pre_match"]["min_inlier_ratio"]
+    min_num_inlier = align_args["pre_match"]["min_num_inlier"]
+    max_trust = align_args["pre_match"]["max_trust"]
+    det_delta = align_args["pre_match"]["det_delta"]
+    max_stretch = align_args["pre_match"]["max_stretch"]
     model, filtered_matches = ransac.filter_matches(match_points, model_index, iterations, max_epsilon,
                                                     min_inlier_ratio, min_num_inlier, max_trust, det_delta, max_stretch)
     if filtered_matches is None:
@@ -191,13 +191,13 @@ def iterative_search(align_args: dict, layer1: int, layer2: int, indexed_ts1: di
     log_controller.debug("Section {} - mfovs: {}, {} features loaded.".format(layer1, mfovs_nums1, len(all_points1)))
 
     # Make sure we have enough features from section 1
-    if len(all_points1) < align_args["min_features_num"]:
+    if len(all_points1) < align_args["pre_match"]["min_features_num"]:
         log_controller.debug("Number of features in Section {} "
                              "mfov(s) {} is {}, and smaller than {}. "
                              "Skipping feature matching".format(layer1,
                                                                 mfovs_nums1,
                                                                 len(all_points1),
-                                                                align_args["min_features_num"]))
+                                                                align_args["pre_match"]["min_features_num"]))
         return None, 0, 0, 0, 0, 0, 0
 
     # Take the mfovs in the middle of the 2nd section as the initial matched area
@@ -271,17 +271,18 @@ def iterative_search(align_args: dict, layer1: int, layer2: int, indexed_ts1: di
                 break
 
         if num_filtered > (
-                align_args["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)) and filter_rate > \
-                align_args["filter_rate_cutoff"]:
+                align_args["pre_match"]["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)) and \
+                filter_rate > align_args["pre_match"]["filter_rate_cutoff"]:
             best_transform = model
             match_found = True
         else:
             # Find the mfovs that are overlapping with the current area
-            filter_thres = align_args["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)
+            filter_thres = align_args["pre_match"]["num_filtered_percent"] * len(all_points1) / len(mfovs_nums1)
             log_controller.debug("len(mfovs_nums1):{}".format(len(mfovs_nums1)))
             log_controller.debug("threshold wasn't met: num_filtered: {} > {} and "
                                  "filter_rate: {} > {}".format(num_filtered, filter_thres,
-                                                               filter_rate, align_args["filter_rate_cutoff"]))
+                                                               filter_rate,
+                                                               align_args["pre_match"]["filter_rate_cutoff"]))
             overlapping_mfovs = set()
             for m in sorted_mfovs2:
                 if current_area.overlap(section2_mfov_bboxes[m]):
@@ -307,7 +308,7 @@ def iterative_search(align_args: dict, layer1: int, layer2: int, indexed_ts1: di
             current_features = (current_features_pts, np.vstack(current_features_descs))
             current_mfovs = overlapping_mfovs
 
-        if not is_initial_search and match_iteration == align_args["max_attempts"]:
+        if not is_initial_search and match_iteration == align_args["pre_match"]["max_attempts"]:
             log_controller.debug("Reached maximal number of attempts in iterative search, stopping search")
 
     if best_transform is None and saved_model['model'] is not None:

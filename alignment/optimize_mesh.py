@@ -49,7 +49,7 @@ class Mesh(object):
         edge_indices = np.vstack({tuple(sorted(tuple(row))) for row in edge_indices}).astype(np.uint32)
         # mesh.pts[edge_indices, :].shape =(#edges, #pts-per-edge, #values-per-pt)
         edge_lengths = np.sqrt((np.diff(self.pts[edge_indices], axis=1) ** 2).sum(axis=2)).ravel()
-        #print("Median edge length:", np.median(edge_lengths), "Max edge length:", np.max(edge_lengths))
+        # print("Median edge length:", np.median(edge_lengths), "Max edge length:", np.max(edge_lengths))
         triangles_as_pts = self.pts[simplices]
         triangle_areas = 0.5 * np.cross(triangles_as_pts[:, 2, :] - triangles_as_pts[:, 0, :],
                                         triangles_as_pts[:, 1, :] - triangles_as_pts[:, 0, :])
@@ -155,17 +155,12 @@ def plot_offsets(meshes, links, ts, fname_prefix):
         pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
         pts2 = np.einsum('ijk,ij->ik', meshes[ts2].pts[idx2], w2)
         diffs2 = pts2 - pts1
-        #lines = [[p1, p2] for p1, p2 in zip(pts1, pts2)]
 
-        fname = "{}{}.png".format(fname_prefix, (os.path.basename(ts1) + '_' + os.path.basename(ts2)).replace(' ', '_'))
-        #lc = mc.LineCollection(lines)
+        figure_file_path = "{}{}.png".format(fname_prefix, (os.path.basename(ts1) + '_' + os.path.basename(ts2)).replace(' ', '_'))
         pylab.figure()
         pylab.title(ts1 + ' ' + ts2)
-        #pylab.gca().add_collection(lc)
         pylab.quiver(pts1[:, 0], pts1[:, 1], diffs2[:, 0], diffs2[:, 1])
-        #pylab.scatter(pts1[:, 0], pts1[:, 1])
-        #pylab.gca().autoscale()
-        pylab.savefig(fname)
+        pylab.savefig(figure_file_path)
 
 
 def plot_points(pts, fname):
@@ -219,9 +214,9 @@ def Haffine_from_points(fp, tp):
 
     # conditioned points have mean zero, so translation is zero
     A = np.concatenate((fp_cond, tp_cond), axis=0)
-    #U,S,V = np.linalg.svd(A.T, full_matrices=True)
-    #U,S,V = spLA.svd(A.T)
-    #U,S,V = spLA.svds(A.T, k=3, ncv=50, maxiter=1e9, return_singular_vectors='vh') # doesn't work well
+    # U,S,V = np.linalg.svd(A.T, full_matrices=True)
+    # U,S,V = spLA.svd(A.T)
+    # U,S,V = spLA.svds(A.T, k=3, ncv=50, maxiter=1e9, return_singular_vectors='vh') # doesn't work well
     # Randomized svd uses much less memory and is much faster than the numpy/scipy versions
     U, S, V = randomized_svd(A.T, 4)
 
@@ -270,8 +265,8 @@ def optimize_meshes_links(meshes, links, layers, align_args):
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
         if layers[active_ts] in align_args["debugged_layers"]:
-            pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
-            #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "pre_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
+            pickle.dump([active_ts, meshes[active_ts].pts],
+                        open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
 
     for active_ts in sorted_slices[1:]:
         print("Before affine (sec {}): {}".format(layers[active_ts], mean_offsets(meshes, links, active_ts, plot=False)))
@@ -392,7 +387,7 @@ def optimize_meshes_links(meshes, links, layers, align_args):
     return out_positions
 
 
-def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
+def optimize_meshes(match_files_list, hex_spacing, align_args):
     meshes = {}
 
     meshes_per_mfov = {}
@@ -413,12 +408,12 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
             #         meshes_per_mfov[data["tilespec1"]][data["mfov1"]] = data["mesh"]
             # else:
             #     meshes[data["tilespec1"]] = Mesh(data["mesh"])
-            ts_fname = data["tilespec1"].replace("file://","")
+            tilespecs_file_path = data["tilespec1"].replace("file://","")
             print("Generating Hexagonal Grid")
-            bb = BoundingBox.read_bbox(ts_fname)
+            bb = BoundingBox.read_bbox(tilespecs_file_path)
             print("bounding_box: ", bb)
             meshes[data["tilespec1"]] = Mesh(utils.generate_hexagonal_grid(bb, hex_spacing))
-            ts_layer = utils.read_layer_from_file(ts_fname)
+            ts_layer = utils.read_layer_from_tilespecs_file(tilespecs_file_path)
             layers[data["tilespec1"]] = ts_layer
         if not data["tilespec1"] in pair_ts_to_pts:
             pair_ts_to_pts[data["tilespec1"]] = {}
@@ -447,4 +442,4 @@ def optimize_meshes(match_files_list, hex_spacing, conf_dict={}):
     del pair_ts_to_pts
     gc.collect()
 
-    return optimize_meshes_links(meshes, links, layers, conf_dict)
+    return optimize_meshes_links(meshes, links, layers, align_args)
