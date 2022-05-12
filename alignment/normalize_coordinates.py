@@ -5,7 +5,6 @@ import json
 from common import utils
 
 overall_args = utils.load_json_file('../arguments/overall_args.json')
-utils.create_dir(overall_args["base"]["workspace"])
 log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
                                      overall_args["base"]["running_mode"])
 

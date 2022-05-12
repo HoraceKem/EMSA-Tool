@@ -6,7 +6,6 @@ import common.utils as utils
 import common.keypoint_features_extraction as keypoint_features
 
 overall_args = utils.load_json_file('../arguments/overall_args.json')
-utils.create_dir(overall_args["base"]["workspace"])
 log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
                                      overall_args["base"]["running_mode"])
 
