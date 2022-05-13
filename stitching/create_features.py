@@ -5,9 +5,8 @@ import os
 import common.utils as utils
 import common.keypoint_features_extraction as keypoint_features
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def compute_and_save_tile_features(tilespec: dict, output_h5_file_path: str, features_type: str, features_args: dict):
@@ -23,8 +22,8 @@ def compute_and_save_tile_features(tilespec: dict, output_h5_file_path: str, fea
     img_file_path = tilespec["mipmapLevels"]["0"]["imageUrl"]
     log_controller.debug("Computing {} features for image: {}".format(features_type, os.path.basename(img_file_path)))
     if features_type not in keypoint_features.__dict__:
-        log_controller.error(utils.to_red('Unexpected features type. '
-                                          'Please refer to common/keypoint_features_extraction.py'))
+        log_controller.error('Unexpected features type. '
+                                          'Please refer to common/keypoint_features_extraction.py')
         raise TypeError('features type')
 
     img_gray = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE)

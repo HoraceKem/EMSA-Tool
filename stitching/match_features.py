@@ -9,9 +9,8 @@ from common.bounding_box import BoundingBox
 import common.keypoint_features_matching as matching
 
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def load_features(h5_file_path: str) -> [str, np.array, np.array]:
@@ -57,8 +56,8 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
     log_controller.debug('Matching the features from {} and {} using {}'.format(features1_path, features2_path,
                                                                                 matching_type))
     if matching_type not in matching.__dict__:
-        log_controller.error(utils.to_red('Unexpected matching type. '
-                                          'Please refer to common/keypoint_features_matching.py'))
+        log_controller.error('Unexpected matching type. '
+                                          'Please refer to common/keypoint_features_matching.py')
         raise TypeError('matching type')
     image1_path, pts1, des1 = load_features(features1_path)
     image2_path, pts2, des2 = load_features(features2_path)
@@ -79,7 +78,7 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
     des2 = des2[features_mask2]
     good_matches = matching.__dict__[matching_type](des1, des2, parameters)
     if good_matches == ['NO_MATCH']:
-        log_controller.warning(utils.to_red('No match!'))
+        log_controller.warning('No match!')
         filtered_matches = [[], []]
         model_json = []
     else:
@@ -99,7 +98,7 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
         model_json = []
         if model is None:
             filtered_matches = [[], []]
-            log_controller.warning(utils.to_red('No fit model!'))
+            log_controller.warning('No fit model!')
         else:
             model_json = model.to_modelspec()
             log_controller.debug('Fit model: {}'.format(model_json))

@@ -3,12 +3,14 @@ import logging
 import json
 import glob
 import math
+import re
+
 import termcolor
 from pymage_size import get_image_size
 
 
 class LogController(object):
-    def __init__(self, module_name: str, log_folder_path: str, running_mode: str):
+    def __init__(self, module_name: str, log_folder_path: str):
         """
         Initialize a log controller according to the module name and log folder path
         :param module_name: the name of the module, in order to collect logs into different files
@@ -17,18 +19,14 @@ class LogController(object):
         :type log_folder_path: str
         """
         # Set the logger
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(module_name)
+        self.logger.setLevel(logging.DEBUG)
         log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
 
         # Set the StreamHandler to print logs in the console
         log_handler_console = logging.StreamHandler()
         log_handler_console.setFormatter(log_formatter)
-        if running_mode == 'release':
-            log_handler_console.setLevel(logging.INFO)
-        elif running_mode == 'debug':
-            log_handler_console.setLevel(logging.DEBUG)
-        else:
-            raise AssertionError('Unexpected running mode: {}'.format(running_mode))
+        log_handler_console.setLevel(logging.INFO)
 
         # Set the FileHandler to output the logs to files
         create_dir(log_folder_path)
@@ -72,6 +70,7 @@ def ls_absolute_paths(folder_path: str) -> list:
     :type folder_path: str
     :return: a sorted list of absolute paths in the folder
     """
+    folder_path = os.path.abspath(folder_path)
     basenames = os.listdir(folder_path)
     basenames.sort()
     absolute_paths = []
@@ -88,6 +87,7 @@ def ls_sub_folder_paths(folder_path: str) -> list:
     :type folder_path: str
     :return: a sorted list of absolute paths in the folder
     """
+    folder_path = os.path.abspath(folder_path)
     basenames = os.listdir(folder_path)
     basenames.sort()
     sub_folder_paths = []
@@ -132,7 +132,7 @@ def save_json_file(output_json_file_path: str, json_contents):
     :return: 
     """
     with open(output_json_file_path, 'w') as f:
-        json.dump(json_contents, f, sort_keys=True, indent=4)
+        json.dump(json_contents, f, sort_keys=False, indent=4)
 
 
 def index_tilespec(tilespecs: list) -> dict:
@@ -256,7 +256,7 @@ def check_EM_type(section_folder_path: str) -> str:
     """
     if 'S_' in section_folder_path:
         return 'singlebeam'
-    elif 'S*R*' in section_folder_path:
+    elif re.search('S*R*', section_folder_path):
         return 'multibeam'
     return 'unknown'
 
@@ -276,6 +276,7 @@ def ls_img_file_paths_singlebeam(section_folder_path: str, file_ext: str = 'tif'
         fail_string = 'failed'
         if fail_string not in img_file_path:
             img_file_paths_filtered.append(img_file_path)
+    img_file_paths_filtered.sort()
     return img_file_paths_filtered
 
 
@@ -294,6 +295,7 @@ def ls_img_file_paths_multibeam(mfov_folder_path: str, file_ext: str = 'bmp') ->
         thumbnail_string = 'thumbnail'
         if thumbnail_string not in img_file_path:
             img_file_paths_filtered.append(img_file_path)
+    img_file_paths_filtered.sort()
     return img_file_paths_filtered
 
 

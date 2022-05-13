@@ -8,9 +8,8 @@ from common import ransac
 from common import utils
 from common.bounding_box import BoundingBox
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
 if overall_args["base"]["EM_type"] == 'singlebeam':
     TILES_PER_MFOV = 1
 else:
@@ -27,7 +26,7 @@ def load_features(h5_file_path: str, tilespec: dict):
     log_controller.debug('Loading features from file: {}'.format(h5_file_path))
     # Should have the same name as the following: [tilespec base filename]_[img filename].json/.hdf5
     if not os.path.basename(os.path.splitext(tilespec["mipmapLevels"]["0"]["imageUrl"])[0]) in h5_file_path:
-        log_controller.error(utils.to_red('Features file does not match tilespec'))
+        log_controller.error('Features file does not match tilespec')
         raise AssertionError
 
     with h5py.File(h5_file_path, 'r') as f:
@@ -81,8 +80,8 @@ def analyze_mfov(mfov_tilespecs: dict, features_folder_path: str):
     mfov_string = ("%06d" % mfov_num)
     mfov_feature_file_paths = utils.ls_absolute_paths(os.path.join(features_folder_path, mfov_string))
     if len(mfov_feature_file_paths) < TILES_PER_MFOV:
-        log_controller.warning(utils.to_red("The number of feature files in directory: {} is smaller than {}".format(
-            os.path.join(os.path.join(features_folder_path, mfov_string)), TILES_PER_MFOV)))
+        log_controller.warning("The number of feature files in directory: {} is smaller than {}".format(
+            os.path.join(os.path.join(features_folder_path, mfov_string)), TILES_PER_MFOV))
 
     # load each features file, and concatenate all to single lists
     for tile_num in mfov_tilespecs.keys():
@@ -454,7 +453,7 @@ def pre_match_layers(tilespecs_file_path1: str, features_folder_path1: str,
                                                       features_folder_path1, features_folder_path2, align_args)
 
     if len(retval) == 0:
-        log_controller.warning(utils.to_red("Could not find a match!"))
+        log_controller.warning("Could not find a match!")
     else:
         jsonfile = {
             'tilespec1': tilespecs_file_path1,

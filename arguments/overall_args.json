@@ -2,12 +2,12 @@
 	"base":
 	{
 		"running_mode": "debug",
-		"EM_type": "singlebeam",
+		"EM_type": "multibeam",
         "workspace":"default_workspace",
-		"sample_dir":["/media/sem-lab/Hub1/RB98_imgs_1", "/media/sem-lab/Hub2/RB98_imgs_2"],
+		"sample_folder":"data/multibeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
-		"sample_name": "RB98"
+		"sample_name": "None"
 	},
 	"pre_process":
 	{

@@ -8,10 +8,9 @@ from common import utils
 from scipy.sparse.linalg import lsqr
 from collections import defaultdict
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
+overall_args = utils.load_json_file('arguments/overall_args.json')
 utils.create_dir(overall_args["base"]["workspace"])
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def distance(point1, point2):

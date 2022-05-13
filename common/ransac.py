@@ -1,15 +1,14 @@
 import numpy as np
 import copy
 import os
-import utils
+from common import utils
 from common.trans_models import Transforms
 from scipy.special import comb
 
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
+overall_args = utils.load_json_file('arguments/overall_args.json')
 utils.create_dir(overall_args["base"]["workspace"])
-log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def tri_area(p1, p2, p3):
@@ -221,8 +220,8 @@ def ransac(matches, target_model_type, iterations, epsilon, min_inlier_ratio, mi
     proposed_model = Transforms.create(target_model_type)
 
     if proposed_model.MIN_MATCHES_NUM > matches.shape[1]:
-        log_controller.warning(utils.to_red("RANSAC cannot find a good model because the number "
-                                            "of initial matches ({}) is too small.".format(matches.shape[1])))
+        log_controller.warning("RANSAC cannot find a good model because the number "
+                                            "of initial matches ({}) is too small.".format(matches.shape[1]))
         return None, None, None
 
     # Avoiding repeated indices permutations using a dictionary

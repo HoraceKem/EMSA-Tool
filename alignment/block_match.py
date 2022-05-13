@@ -5,13 +5,12 @@ from scipy.spatial import distance
 from scipy import spatial
 from common import utils
 from common.bounding_box import BoundingBox
-import PMCC_filter
+from alignment import PMCC_filter
 import multiprocessing as mp
 from renderer.tilespec_affine_renderer import TilespecAffineRenderer
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def get_mfov_centers_from_json(indexed_tilespecs: dict) -> dict:

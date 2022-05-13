@@ -2,15 +2,14 @@ import sys
 import os
 import json
 from common import utils
-from optimize_mesh import optimize_meshes
+from alignment.optimize_mesh import optimize_meshes
 import math
 import numpy as np
 from scipy import spatial
 import common.trans_models as models
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 SAMPLED_POINTS_NUM = 50
 
@@ -30,8 +29,8 @@ def read_layer_from_file(tilespecs_file_path):
                                  "layers numbers: {1} and {2}".format(tilespecs_file_path, layer, tile['layer']))
             sys.exit(1)
     if layer is None:
-        log_controller.error(utils.to_red("Error reading layers file: {0}. "
-                                          "No layers found.".format(tilespecs_file_path)))
+        log_controller.error("Error reading layers file: {0}. "
+                                          "No layers found.".format(tilespecs_file_path))
         raise ValueError
     return int(layer)
 

@@ -2,11 +2,10 @@ import os
 import csv
 import re
 import decimal
-import utils
+from common import utils
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'),
-                                     overall_args["base"]["running_mode"])
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:
@@ -16,7 +15,7 @@ def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:
     :type tile_info: dict
     :return: decimal key
     """
-    base_name = tile_info["img_base_name"]
+    base_name = tile_info["mipmapLevels"]["0"]["imageUrl"]
     return decimal.Decimal(''.join([c for c in base_name if c.isdigit()]))
 
 
@@ -108,13 +107,54 @@ def parse_section_singlebeam(section_folder_path: str) -> list:
             "height": img_dims[0],
             "tx": offset_x[i],
             "ty": offset_y[i],
-            "mfov": i,
+            "mfov": i + 1,
             "tile_index": 1
         }
         section_info.append(tile_info)
-    section_info.sort(key=img_base_name_decimal_key)
     log_controller.debug('Parsed {} tiles in section folder {}'.format(len(section_info), section_folder_path))
     return section_info
+
+
+def parse_section_singlebeam_save(section_folder_path: str, output_folder_path: str):
+    """
+    Parse the information of one section for singlebeam
+    :param section_folder_path: the absolute path to the section folder
+    :param output_folder_path: the absolute path to the output folder
+    :return:
+    """
+    log_controller.debug('Parsing section in {}'.format(section_folder_path))
+    img_file_paths, offset_x, offset_y = parse_init_coord_singlebeam(section_folder_path)
+    tilespecs = []
+    layer = int(os.path.basename(section_folder_path).split('_')[1])
+    log_controller.debug('Layer(read from section folder name):{}'.format(layer))
+
+    for i, img_file_path in enumerate(img_file_paths):
+        img_dims = utils.read_img_dimensions(img_file_path)
+        tilespec = {
+                "mipmapLevels": {
+                    "0": {
+                        "imageUrl": "{}".format(img_file_path)
+                    }
+                },
+                "minIntensity": 0.0,
+                "maxIntensity": 255.0,
+                "layer": layer,
+                "transforms": [{
+                    "className": "mpicbg.trakem2.transform.TranslationModel2D",
+                    "dataString": "{0} {1}".format(offset_x[i], offset_y[i])
+                }],
+                "width": img_dims[1],
+                "height": img_dims[0],
+                "mfov": i + 1,
+                "tile_index": 1,
+                "bbox": [offset_x[i], offset_x[i] + img_dims[1],
+                         offset_y[i], offset_y[i] + img_dims[0]]
+        }
+        tilespecs.append(tilespec)
+    log_controller.debug('Parsed {} tiles in section folder {}'.format(len(tilespecs), section_folder_path))
+    output_json_file_path = os.path.join(output_folder_path, "Sec_{}.json".format(str(layer).zfill(4)))
+    utils.save_json_file(output_json_file_path, tilespecs)
+    log_controller.debug('Saved tilespecs into {}'.format(output_json_file_path))
 
 
 def parse_section_multibeam(section_folder_path: str) -> list:
@@ -144,3 +184,46 @@ def parse_section_multibeam(section_folder_path: str) -> list:
     log_controller.debug('Parsed {} tiles in section folder {}'.format(len(section_info), section_folder_path))
     return section_info
 
+
+def parse_section_multibeam_save(section_folder_path: str, output_folder_path: str):
+    """
+    Parse the information of one section for multibeam
+    :param section_folder_path: the absolute path to the section folder
+    :param output_folder_path: the absolute path to the output folder
+    :return:
+    """
+    log_controller.debug('Parsing section in {}'.format(section_folder_path))
+    img_file_paths, offset_x, offset_y = parse_init_coord_multibeam(section_folder_path)
+    tilespecs = []
+    file_name_match = re.match('([0-9]+)_S([0-9]+)R.*', os.path.basename(section_folder_path))
+    layer = int(file_name_match.group(2))
+    log_controller.debug('Layer(read from section folder name):{}'.format(layer))
+
+    for i, img_file_path in enumerate(img_file_paths):
+        img_dims = utils.read_img_dimensions(img_file_path)
+        tilespec = {
+                "mipmapLevels": {
+                    "0": {
+                        "imageUrl": "{}".format(img_file_path)
+                    }
+                },
+                "minIntensity": 0.0,
+                "maxIntensity": 255.0,
+                "layer": layer,
+                "transforms": [{
+                    "className": "mpicbg.trakem2.transform.TranslationModel2D",
+                    "dataString": "{0} {1}".format(offset_x[i], offset_y[i])
+                }],
+                "width": img_dims[1],
+                "height": img_dims[0],
+                "mfov": int(os.path.basename(img_file_path).split('_')[1]),
+                "tile_index": int(os.path.basename(img_file_path).split('_')[2]),
+                "bbox": [offset_x[i], offset_x[i] + img_dims[1],
+                         offset_y[i], offset_y[i] + img_dims[0]]
+        }
+        tilespecs.append(tilespec)
+    tilespecs.sort(key=img_base_name_decimal_key)
+    log_controller.debug('Parsed {} tiles in section folder {}'.format(len(tilespecs), section_folder_path))
+    output_json_file_path = os.path.join(output_folder_path, "Sec_{}.json".format(str(layer).zfill(4)))
+    utils.save_json_file(output_json_file_path, tilespecs)
+    log_controller.debug('Saved tilespecs into {}'.format(output_json_file_path))
