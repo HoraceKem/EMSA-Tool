@@ -10,9 +10,9 @@ from common import utils, import_tilespecs, bounding_box, trans_models
 
 if __name__ == '__main__':
     # Step 0: Notification of the argument settings.
-    print(utils.to_red('Step 0 -- All the running arguments are stored in the folder "arguments".'
-                       'Have you confirmed that all the arguments are set as you want? (yes/no)'))
-    ans = input()
+    print(utils.to_red('Step 0 -- All the running arguments are stored in the folder "arguments". '
+                       'Have you confirmed that all the arguments are set as you want?'))
+    ans = input('Please enter yes or no: ')
     if ans == 'yes':
         print(utils.to_green('Arguments confirmed, start.'))
     elif ans == 'no':
@@ -46,6 +46,25 @@ if __name__ == '__main__':
     else:
         log_controller.error('Wrong EM type in overall_args.json. It should be singlebeam or multibeam.')
         raise AssertionError
+    skipped_layers = utils.parse_layer_range(overall_args["base"]["skipped_layers"])
 
-    # Step 3: Stitching
-    print(utils.to_red('Step 3 -- Stitch the data according to the tilespecs and output new tilespecs.'))
+    # Step 2: Stitching
+    print(utils.to_red('Step 2 -- Stitch the data according to the tilespecs and output new tilespecs.'))
+    stitch_workspace = os.path.join(overall_args["base"]["workspace"], '2d')
+    optimized_2d_folder_path = os.path.join(stitch_workspace, 'optimized_2d')
+    tilespecs_json_files = utils.ls_absolute_paths(tilespecs_folder_path)
+    for tilespecs_json_file in tqdm(tilespecs_json_files):
+        # Step 2.1 Preparation
+        layer = utils.read_layer_from_tilespecs_file(tilespecs_json_file)
+        # Skip the section if it is in the skipped_layers which is set in overall_args.json
+        if layer in skipped_layers:
+            continue
+        # Skip the section if already have the optimized result
+        section_basename_no_ext = os.path.basename(tilespecs_json_file).replace('json', '')
+        opt_montage_json = os.path.join(optimized_2d_folder_path, "{0}_montaged.json".format(section_basename_no_ext))
+        if os.path.exists(opt_montage_json):
+            log_controller.debug("Previously optimized layer: {0}, skipping all pre-computations".format(layer))
+            continue
+
+        # Step 2.2 Creating features
+
