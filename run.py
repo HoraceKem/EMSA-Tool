@@ -15,9 +15,9 @@ def check_overall_args(args):
     assert args["base"]["running_mode"] in ["debug", "release"]
     assert args["base"]["EM_type"] in ["singlebeam", "multibeam"]
     if args["base"]["running_mode"] == 'debug':
-        print(utils.to_blue('[debug mode] multiprocessing will be disabled.'))
+        print(utils.to_green('[debug mode] multiprocessing will be disabled.'))
     elif args["base"]["running_mode"] == 'release':
-        print(utils.to_blue('[release mode] multiprocessing will be enabled.'))
+        print(utils.to_green('[release mode] multiprocessing will be enabled.'))
 
 
 if __name__ == '__main__':
@@ -63,6 +63,7 @@ if __name__ == '__main__':
     print(utils.to_red('Step 2 -- Stitch the data according to the tilespecs and output new tilespecs.'))
     time.sleep(0.1)
     stitch_workspace = os.path.join(overall_args["base"]["workspace"], '2d')
+    utils.create_dir(stitch_workspace)
     features_folder_path = os.path.join(stitch_workspace, 'features')
     utils.create_dir(features_folder_path)
     match_folder_path = os.path.join(stitch_workspace, 'matched_features')
@@ -180,3 +181,17 @@ if __name__ == '__main__':
         opt_montage_json = os.path.join(optimized_2d_folder_path, "Sec_{}_montaged.json".format(str(layer).zfill(4)))
         if not os.path.exists(opt_montage_json):
             optimize_2d.optimize_2d_stitching(tilespecs_json_file, match_file_paths_list, opt_montage_json)
+
+    # Step 3: Alignment
+    print(utils.to_red('Step 3 -- Align the data according to the stitched tilespecs and output new tilespecs.'))
+    align_workspace = os.path.join(overall_args["base"]["workspace"], '3d')
+    utils.create_dir(stitch_workspace)
+    pre_matches_dir = os.path.join(align_workspace, "pre_matches")
+    utils.create_dir(pre_matches_dir)
+    matched_pmcc_dir = os.path.join(align_workspace, "matched_pmcc")
+    utils.create_dir(matched_pmcc_dir)
+    post_optimization_dir = os.path.join(align_workspace, "post_optimization")
+    utils.create_dir(post_optimization_dir)
+    stitched_tilespecs_json_files = utils.ls_absolute_paths(optimized_2d_folder_path)
+    for tilespecs_json_file in tqdm(stitched_tilespecs_json_files):
+        
