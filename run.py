@@ -68,9 +68,10 @@ if __name__ == '__main__':
     match_folder_path = os.path.join(stitch_workspace, 'matched_features')
     utils.create_dir(match_folder_path)
     optimized_2d_folder_path = os.path.join(stitch_workspace, 'optimized_2d')
+    utils.create_dir(optimized_2d_folder_path)
     tilespecs_json_files = utils.ls_absolute_paths(tilespecs_folder_path)
     for tilespecs_json_file in tqdm(tilespecs_json_files):
-        # Step 2.1 Preparation
+        # Step 2.1: Preparation
         layer = utils.read_layer_from_tilespecs_file(tilespecs_json_file)
         log_controller.debug('Start stitching section {}/{}'.format(layer, len(tilespecs_json_files)))
         # Skip the section if it is in the skipped_layers which is set in overall_args.json
@@ -83,7 +84,7 @@ if __name__ == '__main__':
             log_controller.debug('Previously optimized layer: {0}, skipping all pre-computations'.format(layer))
             continue
 
-        # Step 2.2 Creating features
+        # Step 2.2: Creating features
         log_controller.debug('Start extracting features')
         section_features_folder_path = os.path.join(features_folder_path, 'Sec_{}'.format(str(layer).zfill(4)))
         utils.create_dir(section_features_folder_path)
@@ -104,7 +105,7 @@ if __name__ == '__main__':
             pool_extract.close()
             pool_extract.join()
 
-        # Step 2.3 Matching features
+        # Step 2.3: Matching features
         log_controller.debug('Start matching features')
         section_match_folder_path = os.path.join(match_folder_path, 'Sec_{}'.format(str(layer).zfill(4)))
         utils.create_dir(section_match_folder_path)
@@ -118,7 +119,7 @@ if __name__ == '__main__':
         feature_paths_list2 = []
         tilespecs_list1 = []
         tilespecs_list2 = []
-        match_folder_paths_list = []
+        match_file_paths_list = []
         log_controller.debug('Looking for the overlapped tiles and collecting arguments for matching function.')
         for pair in itertools.combinations(range(len(tilespecs)), 2):
             idx1 = pair[0]
@@ -153,7 +154,7 @@ if __name__ == '__main__':
                 feature_paths_list2.append(feature_path2)
                 tilespecs_list1.append(ts1)
                 tilespecs_list2.append(ts2)
-                match_folder_paths_list.append(match_path)
+                match_file_paths_list.append(match_path)
         matching_pairs_num = len(feature_paths_list1)
         log_controller.debug('Found {} pairs to be matched.'.format(matching_pairs_num))
 
@@ -162,15 +163,20 @@ if __name__ == '__main__':
             for i in range(matching_pairs_num):
                 log_controller.debug('Matching {}/{}'.format(i + 1, matching_pairs_num))
                 match_features.match_and_save(feature_paths_list1[i], feature_paths_list2[i],
-                                              tilespecs_list1[i], tilespecs_list2[i], match_folder_paths_list[i],
+                                              tilespecs_list1[i], tilespecs_list2[i], match_file_paths_list[i],
                                               features_args, overall_args["stitching"]["matching_type"])
         elif overall_args["base"]["running_mode"] == 'release':
             pool_extract = mp.Pool(overall_args["multiprocess"]["match_features"])
             for i in range(matching_pairs_num):
                 pool_extract.apply_async(match_features.match_and_save,
                                          (feature_paths_list1[i], feature_paths_list2[i],
-                                          tilespecs_list1[i], tilespecs_list2[i], match_folder_paths_list[i],
+                                          tilespecs_list1[i], tilespecs_list2[i], match_file_paths_list[i],
                                           features_args, overall_args["stitching"]["matching_type"]))
             pool_extract.close()
             pool_extract.join()
 
+        # Step 2.4 Optimization
+        log_controller.debug('Start optimizing for layer {}'.format(layer))
+        opt_montage_json = os.path.join(optimized_2d_folder_path, "Sec_{}_montaged.json".format(str(layer).zfill(4)))
+        if not os.path.exists(opt_montage_json):
+            optimize_2d.optimize_2d_stitching(tilespecs_json_file, match_file_paths_list, opt_montage_json)

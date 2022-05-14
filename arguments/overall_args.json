@@ -1,7 +1,7 @@
 {
 	"base":
 	{
-		"running_mode": "release",
+		"running_mode": "debug",
 		"EM_type": "singlebeam",
         "workspace":"default_workspace2",
 		"sample_folder":"data/singlebeam_test_dataset",

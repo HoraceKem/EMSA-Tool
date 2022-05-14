@@ -13,7 +13,7 @@ overall_args = utils.load_json_file('arguments/overall_args.json')
 log_controller = utils.LogController('stitching', 'match', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
-def load_features(h5_file_path: str) -> [str, np.array, np.array]:
+def load_features(h5_file_path: str) -> [np.array, np.array]:
     """
     Load features from h5py file
     :param h5_file_path:
@@ -26,7 +26,7 @@ def load_features(h5_file_path: str) -> [str, np.array, np.array]:
         log_controller.debug('The features are extracted from: {}'.format(image_url))
         locations = f["pts/locations"][...]
         descriptors = f["descs"][...]
-    return image_url, locations, descriptors
+    return locations, descriptors
 
 
 def get_tile_specification_transformation(tilespec: dict):
@@ -55,12 +55,15 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
     """
     log_controller.debug('Matching the features from {} and {} using {}'.format(features1_path, features2_path,
                                                                                 matching_type))
+    if os.path.exists(save_match_path):
+        log_controller.debug('Matching file {} exists, skipped.'.format(save_match_path))
+        return
     if matching_type not in matching.__dict__:
         log_controller.error('Unexpected matching type. '
                                           'Please refer to common/keypoint_features_matching.py')
         raise TypeError('matching type')
-    image1_path, pts1, des1 = load_features(features1_path)
-    image2_path, pts2, des2 = load_features(features2_path)
+    pts1, des1 = load_features(features1_path)
+    pts2, des2 = load_features(features2_path)
     cur_bbox1 = BoundingBox.fromList(ts1["bbox"])
     cur_bbox2 = BoundingBox.fromList(ts2["bbox"])
     overlap_bbox = cur_bbox1.intersect(cur_bbox2).expand(offset=50)
@@ -105,8 +108,8 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
 
     out_data = [{
         "mipmapLevel": 0,
-        "url1": image1_path,
-        "url2": image2_path,
+        "url1": ts1["mipmapLevels"]["0"]["imageUrl"],
+        "url2": ts2["mipmapLevels"]["0"]["imageUrl"],
         "correspondencePointPairs": [
             {
                 "p1": {"w": np.array(tilespec1_transform.apply(p1)[:2]).tolist(),

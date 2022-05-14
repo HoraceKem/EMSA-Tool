@@ -13,11 +13,14 @@ utils.create_dir(overall_args["base"]["workspace"])
 log_controller = utils.LogController('stitching', 'optimize_2d', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
-def distance(point1, point2):
-    return np.sqrt(((point1 - point2) ** 2).sum(axis=0))
-
-
-def find_rotation(point1, point2, step_size):
+def find_rotation(point1: np.ndarray, point2: np.ndarray, step_size: float):
+    """
+    Find rotation
+    :param point1:
+    :param point2:
+    :param step_size:
+    :return:
+    """
     U, S, VT = np.linalg.svd(np.dot(point1, point2.T))
     R = np.dot(VT.T, U.T)
     angle = step_size * np.arctan2(R[1, 0], R[0, 0])
@@ -25,9 +28,19 @@ def find_rotation(point1, point2, step_size):
                      [np.sin(angle), np.cos(angle)]])
 
 
-def create_new_tilespec(old_tilespec_filename, rotations, translations, centers, new_tilespec_file_path):
-    log_controller.debug("Optimization done, saving tilespec at: {}".format(new_tilespec_file_path))
-    tilespecs = utils.load_json_file(old_tilespec_filename)
+def create_new_tilespec(old_tilespecs_file_path: str, rotations: dict, translations: dict,
+                        centers: dict, new_tilespecs_file_path: str):
+    """
+    Load original tilespecs and write the transforms into it
+    :param old_tilespecs_file_path:
+    :param rotations:
+    :param translations:
+    :param centers:
+    :param new_tilespecs_file_path:
+    :return:
+    """
+    log_controller.debug("Optimization done, saving tilespec at: {}".format(new_tilespecs_file_path))
+    tilespecs = utils.load_json_file(old_tilespecs_file_path)
 
     for ts in tilespecs:
         img_url = ts["mipmapLevels"]["0"]["imageUrl"]
@@ -69,28 +82,30 @@ def create_new_tilespec(old_tilespec_filename, rotations, translations, centers,
 
         ts["bbox"] = new_bbox
 
-    with open(new_tilespec_file_path, 'w') as f:
+    with open(new_tilespecs_file_path, 'w') as f:
         json.dump(tilespecs, f, sort_keys=True, indent=4)
-        log_controller.debug('Wrote tilespec to {}'.format(new_tilespec_file_path))
+        log_controller.debug('Wrote tilespec to {}'.format(new_tilespecs_file_path))
 
 
-def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename):
+def optimize_2d_stitching(tilespecs_file_path: str, match_file_paths: list, output_json_file_path: str):
+    """
+    Optimize the global stitching according to matching pairs
+    :param tilespecs_file_path:
+    :param match_file_paths:
+    :param output_json_file_path:
+    :return:
+    """
     all_matches = {}
     all_points = defaultdict(list)
-
-    with open(match_list_file, 'r') as list_file:
-        match_files = list_file.readlines()
-    match_files = [file_path.replace('\n', '') for file_path in match_files]
 
     max_iters = 1000
     epsilon = 5
     step_size = 0.1
     damping = 0.01
     no_empty_matches_flag = True
-    tile_specification = utils.load_json_file(tiles_filename)
+    tile_specification = utils.load_json_file(tilespecs_file_path)
 
-    pbar = progressbar.ProgressBar()
-    for f in pbar(match_files):
+    for f in match_file_paths:
         data = json.load(open(f))
         points1 = np.array([c["p1"]["w"] for c in data[0]["correspondencePointPairs"]]).T
         points2 = np.array([c["p2"]["w"] for c in data[0]["correspondencePointPairs"]]).T
@@ -234,4 +249,4 @@ def optimize_2d_stitching(tiles_filename, match_list_file, output_json_filename)
     T = {k: v.tolist() for k, v in T.items()}
     centers = {k: v.tolist() for k, v in centers.items()}
 
-    create_new_tilespec(tiles_filename, R, T, centers, output_json_filename)
+    create_new_tilespec(tilespecs_file_path, R, T, centers, output_json_file_path)
