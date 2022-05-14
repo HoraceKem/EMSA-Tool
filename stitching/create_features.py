@@ -6,25 +6,30 @@ import common.utils as utils
 import common.keypoint_features_extraction as keypoint_features
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('stitching', 'create', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
-def compute_and_save_tile_features(tilespec: dict, output_h5_file_path: str, features_type: str, features_args: dict):
+def compute_and_save_tile_features(tilespec: dict, output_h5_folder_path: str, features_type: str, features_args: dict):
     """
     Compute and save features as H5PY file according to the tilespec
     :param features_args:
     :param tilespec:
-    :param output_h5_file_path:
+    :param output_h5_folder_path:
     :param features_type:
     :return:
     """
-
+    if features_type not in keypoint_features.__dict__:
+        log_controller.error('Unexpected features type. Please refer to common/keypoint_features_extraction.py')
+        raise TypeError('features type')
     img_file_path = tilespec["mipmapLevels"]["0"]["imageUrl"]
     log_controller.debug("Computing {} features for image: {}".format(features_type, os.path.basename(img_file_path)))
-    if features_type not in keypoint_features.__dict__:
-        log_controller.error('Unexpected features type. '
-                                          'Please refer to common/keypoint_features_extraction.py')
-        raise TypeError('features type')
+
+    output_h5_file_path = os.path.join(output_h5_folder_path,
+                                       '{}_{}.h5py'.format(features_type,
+                                                           os.path.basename(img_file_path).split('.')[0]))
+    if os.path.exists(output_h5_file_path):
+        log_controller.debug('Feature file exists, skipped.')
+        return
 
     img_gray = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE)
     pts, des = keypoint_features.__dict__[features_type](img_gray, features_args)
@@ -43,13 +48,13 @@ def compute_and_save_tile_features(tilespec: dict, output_h5_file_path: str, fea
         hf.create_dataset("descs", data=np.array(des, dtype=np.float32))
 
 
-def compute_and_save_tile_features_split_block(tilespec: dict, output_h5_file_path: str, features_type: str,
+def compute_and_save_tile_features_split_block(tilespec: dict, output_h5_folder_path: str, features_type: str,
                                                features_args: dict, block: int):
     """
     First split the image into several blocks, then compute and save features as H5PY file according to the tilespec
     Commonly used for the singlebeam data with large tile size
     :param tilespec:
-    :param output_h5_file_path:
+    :param output_h5_folder_path:
     :param features_type:
     :param features_args:
     :param block:
@@ -61,6 +66,13 @@ def compute_and_save_tile_features_split_block(tilespec: dict, output_h5_file_pa
     img_file_path = tilespec["mipmapLevels"]["0"]["imageUrl"]
     img_gray = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE)
     log_controller.debug("Computing {} features for image: {}".format(features_type, os.path.basename(img_file_path)))
+
+    output_h5_file_path = os.path.join(output_h5_folder_path,
+                                       '{}_{}.h5py'.format(features_type,
+                                                           os.path.basename(img_file_path).split('.')[0]))
+    if os.path.exists(output_h5_file_path):
+        log_controller.debug('Feature file exists, skipped.')
+        return
 
     dims = img_gray.shape
     log_controller.debug("Image dimension: {}. Split in {} blocks".format(dims, block))

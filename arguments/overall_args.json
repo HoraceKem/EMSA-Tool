@@ -1,14 +1,19 @@
 {
 	"base":
 	{
-		"running_mode": "debug",
-		"EM_type": "multibeam",
-        "workspace":"default_workspace",
-		"sample_folder":"data/multibeam_test_dataset",
+		"running_mode": "release",
+		"EM_type": "singlebeam",
+        "workspace":"default_workspace2",
+		"sample_folder":"data/singlebeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
 		"sample_name": "None",
 		"skipped_layers": "None"
+	},
+	"multiprocess":
+	{
+		"extract_features": 8,
+		"match_features": 12
 	},
 	"pre_process":
 	{
@@ -20,6 +25,8 @@
 	},
 	"stitching":
 	{
+		"features_type": "orb",
+		"matching_type": "bf",
 		"workspace_2d_postfix":"2d"
 	},
 	"alignment":

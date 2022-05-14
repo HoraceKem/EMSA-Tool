@@ -5,7 +5,8 @@ import json
 from common import utils
 
 overall_args = utils.load_json_file('../arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('alignment', 'normalize_coordinates',
+                                     os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def add_transformation(input_file_path: str, output_file_path: str, transform: dict, deltas: list):

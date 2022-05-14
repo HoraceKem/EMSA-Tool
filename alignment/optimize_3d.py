@@ -9,7 +9,7 @@ from scipy import spatial
 import common.trans_models as models
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('alignment', 'optimize_3d', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 SAMPLED_POINTS_NUM = 50
 

@@ -5,7 +5,7 @@ import decimal
 from common import utils
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('common', 'tilespecs',os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:
@@ -83,8 +83,8 @@ def parse_init_coord_singlebeam(section_folder_path: str, overlap: float = 0.1) 
         offset_y = (row - 1) * img_dims[0] * (1.0 - overlap)
         offset_x = (col - 1) * img_dims[1] * (1.0 - overlap)
 
-        x.append(int(offset_y))
-        y.append(int(offset_x))
+        x.append(int(offset_x))
+        y.append(int(offset_y))
     return img_file_paths, x, y
 
 

@@ -8,7 +8,7 @@ from scipy.special import comb
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
 utils.create_dir(overall_args["base"]["workspace"])
-log_controller = utils.LogController('common', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('common', 'ransac', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def tri_area(p1, p2, p3):

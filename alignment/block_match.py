@@ -10,7 +10,7 @@ import multiprocessing as mp
 from renderer.tilespec_affine_renderer import TilespecAffineRenderer
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('alignment', 'block', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def get_mfov_centers_from_json(indexed_tilespecs: dict) -> dict:

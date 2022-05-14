@@ -9,7 +9,7 @@ from common import utils
 from common.bounding_box import BoundingBox
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('alignment', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('alignment', 'pre_match', os.path.join(overall_args["base"]["workspace"], 'log'))
 if overall_args["base"]["EM_type"] == 'singlebeam':
     TILES_PER_MFOV = 1
 else:

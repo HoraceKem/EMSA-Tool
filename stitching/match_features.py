@@ -10,7 +10,7 @@ import common.keypoint_features_matching as matching
 
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('stitching', 'match', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def load_features(h5_file_path: str) -> [str, np.array, np.array]:
@@ -86,15 +86,15 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
             np.array([pts1[[m[0].queryIdx for m in good_matches]]][0]),
             np.array([pts2[[m[0].trainIdx for m in good_matches]]][0])
         ])
-        log_controller.debug('Detected {} matches'.format(match_points))
-        model, filtered_matches, _, _ = ransac.filter_matches(match_points,
-                                                              parameters["ransac"]["model_index"],
-                                                              parameters["ransac"]["iterations"],
-                                                              parameters["ransac"]["max_epsilon"],
-                                                              parameters["ransac"]["min_inlier_ratio"],
-                                                              parameters["ransac"]["min_num_inlier"],
-                                                              parameters["ransac"]["max_trust"],
-                                                              parameters["ransac"]["del_delta"])
+        log_controller.debug('Detected {} matches'.format(len(good_matches)))
+        model, filtered_matches = ransac.filter_matches(match_points,
+                                                        parameters["ransac"]["model_index"],
+                                                        parameters["ransac"]["iterations"],
+                                                        parameters["ransac"]["max_epsilon"],
+                                                        parameters["ransac"]["min_inlier_ratio"],
+                                                        parameters["ransac"]["min_num_inlier"],
+                                                        parameters["ransac"]["max_trust"],
+                                                        parameters["ransac"]["del_delta"])
         model_json = []
         if model is None:
             filtered_matches = [[], []]

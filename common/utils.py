@@ -10,7 +10,7 @@ from pymage_size import get_image_size
 
 
 class LogController(object):
-    def __init__(self, module_name: str, log_folder_path: str):
+    def __init__(self, module_name: str, file_name: str, log_folder_path: str):
         """
         Initialize a log controller according to the module name and log folder path
         :param module_name: the name of the module, in order to collect logs into different files
@@ -19,7 +19,7 @@ class LogController(object):
         :type log_folder_path: str
         """
         # Set the logger
-        self.logger = logging.getLogger(module_name)
+        self.logger = logging.getLogger(file_name)
         self.logger.setLevel(logging.DEBUG)
         log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
 
@@ -158,6 +158,8 @@ def parse_layer_range(layer_range: str) -> list:
     :type layer_range: str
     :return: a sorted list of all the layers
     """
+    if layer_range == 'None':
+        return []
     layers = set()
     if layer_range is not None and len(layer_range) != 0:
         for part in layer_range.split(','):

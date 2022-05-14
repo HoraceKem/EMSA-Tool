@@ -10,7 +10,7 @@ from collections import defaultdict
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
 utils.create_dir(overall_args["base"]["workspace"])
-log_controller = utils.LogController('stitching', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('stitching', 'optimize_2d', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def distance(point1, point2):
