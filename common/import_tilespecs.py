@@ -115,12 +115,12 @@ def parse_section_singlebeam(section_folder_path: str) -> list:
     return section_info
 
 
-def parse_section_singlebeam_save(section_folder_path: str, output_folder_path: str):
+def parse_section_singlebeam_save(section_folder_path: str, output_folder_path: str) -> int:
     """
     Parse the information of one section for singlebeam
     :param section_folder_path: the absolute path to the section folder
     :param output_folder_path: the absolute path to the output folder
-    :return:
+    :return: layer
     """
     log_controller.debug('Parsing section in {}'.format(section_folder_path))
     img_file_paths, offset_x, offset_y = parse_init_coord_singlebeam(section_folder_path)
@@ -155,6 +155,7 @@ def parse_section_singlebeam_save(section_folder_path: str, output_folder_path: 
     output_json_file_path = os.path.join(output_folder_path, "Sec_{}.json".format(str(layer).zfill(4)))
     utils.save_json_file(output_json_file_path, tilespecs)
     log_controller.debug('Saved tilespecs into {}'.format(output_json_file_path))
+    return layer
 
 
 def parse_section_multibeam(section_folder_path: str) -> list:
@@ -185,12 +186,12 @@ def parse_section_multibeam(section_folder_path: str) -> list:
     return section_info
 
 
-def parse_section_multibeam_save(section_folder_path: str, output_folder_path: str):
+def parse_section_multibeam_save(section_folder_path: str, output_folder_path: str) -> int:
     """
     Parse the information of one section for multibeam
     :param section_folder_path: the absolute path to the section folder
     :param output_folder_path: the absolute path to the output folder
-    :return:
+    :return: layer
     """
     log_controller.debug('Parsing section in {}'.format(section_folder_path))
     img_file_paths, offset_x, offset_y = parse_init_coord_multibeam(section_folder_path)
@@ -227,3 +228,4 @@ def parse_section_multibeam_save(section_folder_path: str, output_folder_path: s
     output_json_file_path = os.path.join(output_folder_path, "Sec_{}.json".format(str(layer).zfill(4)))
     utils.save_json_file(output_json_file_path, tilespecs)
     log_controller.debug('Saved tilespecs into {}'.format(output_json_file_path))
+    return layer

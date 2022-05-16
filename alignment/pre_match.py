@@ -80,14 +80,13 @@ def analyze_mfov(mfov_tilespecs: dict, features_folder_path: str):
     mfov_string = ("%06d" % mfov_num)
     mfov_feature_file_paths = utils.ls_absolute_paths(os.path.join(features_folder_path, mfov_string))
     if len(mfov_feature_file_paths) < TILES_PER_MFOV:
-        log_controller.warning("The number of feature files in directory: {} is smaller than {}".format(
+        log_controller.error("The number of feature files in directory: {} is smaller than {}".format(
             os.path.join(os.path.join(features_folder_path, mfov_string)), TILES_PER_MFOV))
 
     # load each features file, and concatenate all to single lists
     for tile_num in mfov_tilespecs.keys():
         # for feature_file in mfov_feature_file_paths:
-        feature_file = [file_path for file_path in mfov_feature_file_paths if
-                        "_{}_{}_".format(mfov_string, "%03d" % tile_num) in file_path.split('sifts_')[1]][0]
+        feature_file = [file_path for file_path in mfov_feature_file_paths][tile_num - 1]
         # Get the correct tile tilespec from the section tilespec (convert to int to remove leading zeros)
         # tile_num = int(feature_file.split('sifts_')[1].split('_')[2])
         (tmp_pts, tmp_descs) = load_features(feature_file, mfov_tilespecs[tile_num])
@@ -137,7 +136,7 @@ def compare_features(section1_pts_descs: list, section2_pts_descs: list, align_a
     iterations = align_args["pre_match"]["iterations"]
     max_epsilon = align_args["pre_match"]["max_epsilon"]
     min_inlier_ratio = align_args["pre_match"]["min_inlier_ratio"]
-    min_num_inlier = align_args["pre_match"]["min_num_inlier"]
+    min_num_inlier = align_args["pre_match"]["min_num_inliers"]
     max_trust = align_args["pre_match"]["max_trust"]
     det_delta = align_args["pre_match"]["det_delta"]
     max_stretch = align_args["pre_match"]["max_stretch"]
@@ -342,8 +341,8 @@ def analyze_slices(tilespecs_file_path1: str, tilespecs_file_path2: str,
     sorted_mfovs1 = sorted(indexed_ts1.keys())
     sorted_mfovs2 = sorted(indexed_ts2.keys())
 
-    layer1 = indexed_ts1[0][0]["layer"]
-    layer2 = indexed_ts2[0][0]["layer"]
+    layer1 = utils.read_layer_from_tilespecs_file(tilespecs_file_path1)
+    layer2 = utils.read_layer_from_tilespecs_file(tilespecs_file_path2)
     to_ret = []
 
     # Get all the centers of each section

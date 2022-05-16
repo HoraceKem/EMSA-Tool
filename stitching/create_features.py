@@ -24,7 +24,9 @@ def compute_and_save_tile_features(tilespec: dict, output_h5_folder_path: str, f
     img_file_path = tilespec["mipmapLevels"]["0"]["imageUrl"]
     log_controller.debug("Computing {} features for image: {}".format(features_type, os.path.basename(img_file_path)))
 
-    output_h5_file_path = os.path.join(output_h5_folder_path,
+    mfov_h5_folder_path = os.path.join(output_h5_folder_path, str(tilespec["mfov"]).zfill(6))
+    utils.create_dir(mfov_h5_folder_path)
+    output_h5_file_path = os.path.join(mfov_h5_folder_path,
                                        '{}_{}.h5py'.format(features_type,
                                                            os.path.basename(img_file_path).split('.')[0]))
     if os.path.exists(output_h5_file_path):

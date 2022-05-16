@@ -67,7 +67,7 @@ def get_best_transformations(pre_mfov_matches: dict, tilespecs_file_path1: str, 
         reversed_transformations = [np.linalg.inv(m["transformation"]["matrix"]) for m in pre_mfov_matches["matches"]]
 
         # Build a kdtree from the mfovs centers in section 2
-        kdtree = spatial.KDTree(np.array(mfov_centers1.values()).flatten().reshape(len(mfov_centers1), 2))
+        kdtree = spatial.KDTree(np.array(list(mfov_centers1.values())).flatten().reshape(len(mfov_centers1), 2))
 
         # For each mfov transformed center in section 2, find the closest center, and declare it as a transformation
         closest_centers_idx = kdtree.query(transformed_section_centers2)[1]

@@ -3,7 +3,7 @@
 	{
 		"running_mode": "debug",
 		"EM_type": "singlebeam",
-        "workspace":"default_workspace2",
+        "workspace":"default_workspace",
 		"sample_folder":"data/singlebeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
@@ -13,7 +13,8 @@
 	"multiprocess":
 	{
 		"extract_features": 8,
-		"match_features": 12
+		"match_features": 12,
+		"pmcc_match": 12
 	},
 	"pre_process":
 	{
@@ -25,13 +26,14 @@
 	},
 	"stitching":
 	{
-		"features_type": "orb",
-		"matching_type": "bf",
+		"features_type": "sift",
+		"matching_type": "flann",
 		"workspace_2d_postfix":"2d"
 	},
 	"alignment":
 	{
 		"workspace_3d_postfix":"3d",
+		"max_layer_distance": 1,
 		"output_3d_postfix":"final_results"
 	},
 	"render":

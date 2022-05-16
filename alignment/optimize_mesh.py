@@ -13,9 +13,9 @@ from common.bounding_box import BoundingBox
 from common import utils
 import datetime
 
-import pyximport
-pyximport.install()
-import mesh_derivs_multibeam
+# import pyximport
+# pyximport.install()
+from alignment import mesh_derivs_multibeam
 
 FLOAT_TYPE = np.float64
 
