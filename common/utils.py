@@ -323,7 +323,7 @@ def check_tiles_num(section_folder_path: str, EM_type: str) -> int:
     return tiles_num
 
 
-def generate_hexagonal_grid(bbox: list, spacing: int):
+def generate_hexagonal_grid(bbox: list, spacing: int) -> list:
     """
     Generates a hexagonal grid inside a given bounding-box with a given spacing between the vertices
     :param bbox:
@@ -351,7 +351,7 @@ def generate_hexagonal_grid(bbox: list, spacing: int):
     return pts
 
 
-def read_layer_from_tilespecs_file(tilespecs_file_path):
+def read_layer_from_tilespecs_file(tilespecs_file_path: str) -> int:
     """
     Read the layer from a tilespecs json file.
     One json file should have one and only one layer number
@@ -372,3 +372,15 @@ def read_layer_from_tilespecs_file(tilespecs_file_path):
     if layer is None:
         raise AssertionError("Error reading layers file: {0}. No layers found.".format(tilespecs_file_path))
     return int(layer)
+
+
+def write_list_to_file(file_path: str, list_data: list):
+    """
+    Write a list into a file
+    :param file_path:
+    :param list_data:
+    :return:
+    """
+    with open(file_path, 'w') as out_file:
+        for item in list_data:
+            out_file.write("%s\n" % item)

@@ -167,7 +167,7 @@ def read_ts_layers(tile_files):
     return tilespecs_file_to_layer_id, actual_tile_urls
 
 
-def optimize_layers_elastic(tile_files, corr_files, out_dir, conf=None):
+def optimize_layers_elastic(tile_files, corr_files, out_dir, align_args):
     tilespecs_file_to_layer_id, all_tile_urls = read_ts_layers(tile_files)
 
     # TODO: the tile_files order should imply the order of sections
@@ -176,16 +176,10 @@ def optimize_layers_elastic(tile_files, corr_files, out_dir, conf=None):
     with open(corr_files[0], 'r') as f:
         actual_corr_files = [line.replace('file://', '').strip('\n') for line in f.readlines()]
 
-    conf_dict = {}
-    hex_spacing = 1500  # default value (from block matching)
-    if conf is not None:
-        with open(conf, 'r') as f:
-            params = json.load(f)
-            conf_dict = params["OptimizeLayersElastic"]
-            hex_spacing = params["MatchLayersBlockMatching"]["hex_spacing"]
+    hex_spacing = align_args["block_match"]["hex_spacing"]
 
     # Create a per-layer optimized mesh
-    optimized_meshes = optimize_meshes(actual_corr_files, hex_spacing, conf_dict)
+    optimized_meshes = optimize_meshes(actual_corr_files, hex_spacing, align_args)
 
     # Save the output
     utils.create_dir(out_dir)

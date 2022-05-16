@@ -5,10 +5,9 @@ from tqdm import tqdm
 import shutil
 import itertools
 import multiprocessing as mp
-from common import utils, import_tilespecs, bounding_box, trans_models
+from common import utils, import_tilespecs, bounding_box
 from stitching import create_features, match_features, optimize_2d
-from alignment import pre_match, block_match
-# optimize_3d, normalize_coordinates
+from alignment import pre_match, block_match, optimize_3d, normalize_coordinates
 # import renderer
 
 
@@ -85,14 +84,12 @@ if __name__ == '__main__':
         # Step 2.1: Preparation
         tilespecs_json_file = os.path.join(tilespecs_folder_path, 'Sec_{}.json'.format(str(layer).zfill(4)))
         layers_data[str(layer)]["tilespecs_json_file_path"] = tilespecs_json_file
-        log_controller.debug('Start stitching section {}/{}'.format(layer, len(tilespecs_json_files)))
+        log_controller.debug('Start stitching section {}/{}'.format(layer, len(included_layers)))
 
         # Skip the section if already have the optimized result
-        layer_basename_no_ext = os.path.basename(tilespecs_json_file).replace('json', '')
+        layer_basename_no_ext = os.path.basename(tilespecs_json_file).replace('.json', '')
         opt_montage_json = os.path.join(optimized_2d_folder_path, "{0}_montaged.json".format(layer_basename_no_ext))
-        if os.path.exists(opt_montage_json):
-            log_controller.debug('Previously optimized layer: {0}, skipping all pre-computations'.format(layer))
-            continue
+        layers_data[str(layer)]["stitched_tilespecs_json_file_path"] = opt_montage_json
 
         # Step 2.2: Creating features
         log_controller.debug('Start extracting features')
@@ -102,6 +99,11 @@ if __name__ == '__main__':
         tilespecs = utils.load_json_file(tilespecs_json_file)
         layers_data[str(layer)]["all_mfovs"] = set([tilespec["mfov"] for tilespec in tilespecs])
         features_args = utils.load_json_file('arguments/features_args.json')
+
+        if os.path.exists(opt_montage_json):
+            log_controller.debug('Previously optimized layer: {0}, skipping all pre-computations'.format(layer))
+            continue
+
         if overall_args["base"]["running_mode"] == 'debug':
             for i, tilespec in enumerate(tilespecs):
                 log_controller.debug('Extracting {}/{}'.format(i + 1, len(tilespecs)))
@@ -127,10 +129,6 @@ if __name__ == '__main__':
         utils.create_dir(inter_match_folder_path)
 
         # Collect matching arguments
-        feature_paths_list1 = []
-        feature_paths_list2 = []
-        tilespecs_list1 = []
-        tilespecs_list2 = []
         match_file_paths_list = []
         match_features_params = []
         log_controller.debug('Looking for the overlapped tiles and collecting arguments for matching function.')
@@ -197,9 +195,7 @@ if __name__ == '__main__':
 
         # Step 2.4 Optimization
         log_controller.debug('Start optimizing for layer {}'.format(layer))
-        opt_montage_json = os.path.join(optimized_2d_folder_path, "Sec_{}_montaged.json".format(str(layer).zfill(4)))
-        if not os.path.exists(opt_montage_json):
-            optimize_2d.optimize_2d_stitching(tilespecs_json_file, match_file_paths_list, opt_montage_json)
+        optimize_2d.optimize_2d_stitching(tilespecs_json_file, match_file_paths_list, opt_montage_json)
 
     # Step 3: Alignment
     print(utils.to_red('Step 3 -- Align the data according to the stitched tilespecs and output new tilespecs.'))
@@ -214,7 +210,11 @@ if __name__ == '__main__':
     post_optimization_dir = os.path.join(align_workspace, "post_optimization")
     utils.create_dir(post_optimization_dir)
     stitched_tilespecs_json_files = utils.ls_absolute_paths(optimized_2d_folder_path)
+    all_pmcc_file_paths = []
+    all_ts_file_paths = []
     for layer1 in tqdm(included_layers):
+        log_controller.debug('Start aligning section {}/{}'.format(layer1, len(included_layers)))
+        all_ts_file_paths.append(layers_data[str(layer1)]["stitched_tilespecs_json_file_path"])
         matched_after_layers = 0
         j = 1
         layers_data[str(layer1)]['pre_matched_mfovs'] = {}
@@ -237,15 +237,14 @@ if __name__ == '__main__':
             layers_data[str(layer1)]['pre_matched_mfovs'][str(layer2)] = pre_match_file_path
             if not os.path.exists(pre_match_file_path):
                 log_controller.debug("Pre-Matching layers: {} and {}".format(layer1, layer2))
-                pre_match.pre_match_layers(layers_data[str(layer1)]['tilespecs_json_file_path'],
+                pre_match.pre_match_layers(layers_data[str(layer1)]['stitched_tilespecs_json_file_path'],
                                            layers_data[str(layer1)]['features_folder_path'],
-                                           layers_data[str(layer2)]['tilespecs_json_file_path'],
+                                           layers_data[str(layer2)]['stitched_tilespecs_json_file_path'],
                                            layers_data[str(layer2)]['features_folder_path'],
                                            pre_match_file_path, align_args)
 
             # Step 3.2 PMCC Match
             match_pmcc_params = []
-            all_pmcc_file_paths = []
             # Collect pmcc match parameters
             for mfov1 in layers_data[str(layer1)]["all_mfovs"]:
                 mfov_pmcc_file_path1 = os.path.join(matched_pmcc_dir,
@@ -254,8 +253,8 @@ if __name__ == '__main__':
                                                                                            mfov1))
                 all_pmcc_file_paths.append(mfov_pmcc_file_path1)
                 if not os.path.exists(mfov_pmcc_file_path1):
-                    match_pmcc_params.append({'ts1': layers_data[str(layer1)]['tilespecs_json_file_path'],
-                                              'ts2': layers_data[str(layer2)]['tilespecs_json_file_path'],
+                    match_pmcc_params.append({'ts1': layers_data[str(layer1)]['stitched_tilespecs_json_file_path'],
+                                              'ts2': layers_data[str(layer2)]['stitched_tilespecs_json_file_path'],
                                               'pre': layers_data[str(layer1)]['pre_matched_mfovs'][str(layer2)],
                                               'pmcc_file_path': mfov_pmcc_file_path1,
                                               'mfov': int(mfov1)})
@@ -266,8 +265,8 @@ if __name__ == '__main__':
                                                                                            mfov2))
                 all_pmcc_file_paths.append(mfov_pmcc_file_path2)
                 if not os.path.exists(mfov_pmcc_file_path2):
-                    match_pmcc_params.append({'ts1': layers_data[str(layer2)]['tilespecs_json_file_path'],
-                                              'ts2': layers_data[str(layer1)]['tilespecs_json_file_path'],
+                    match_pmcc_params.append({'ts1': layers_data[str(layer2)]['stitched_tilespecs_json_file_path'],
+                                              'ts2': layers_data[str(layer1)]['stitched_tilespecs_json_file_path'],
                                               'pre': layers_data[str(layer1)]['pre_matched_mfovs'][str(layer2)],
                                               'pmcc_file_path': mfov_pmcc_file_path2,
                                               'mfov': int(mfov2)})
@@ -291,3 +290,29 @@ if __name__ == '__main__':
                 pool_extract.join()
             j += 1
             matched_after_layers += 1
+
+    # Step 3.3 Optimization
+    ts_list_file = os.path.join(align_workspace, "all_ts_files.txt")
+    utils.write_list_to_file(ts_list_file, all_ts_file_paths)
+    pmcc_list_file = os.path.join(align_workspace, "all_pmcc_files.txt")
+    utils.write_list_to_file(pmcc_list_file, all_pmcc_file_paths)
+
+    # Optimize all layers to a single 3d image
+    sections_opt_outputs = []
+    for layer in included_layers:
+        postfix = os.path.basename(layers_data[str(layer)]['stitched_tilespecs_json_file_path'])
+        out_section = os.path.join(post_optimization_dir, '{}_{}'.format(str(layer).zfill(4), postfix))
+        sections_opt_outputs.append(out_section)
+
+    optimize_3d.optimize_layers_elastic([ts_list_file], [pmcc_list_file], post_optimization_dir, align_args)
+
+    output_folder_path = os.path.join(workspace, "final_tilespecs")
+    utils.create_dir(output_folder_path)
+    # Normalize the output files to the (0, 0) coordinates
+    sections_outputs = []
+    for section_opt_output in sections_opt_outputs:
+        out_section = os.path.join(output_folder_path, os.path.basename(section_opt_output))
+        sections_outputs.append(out_section)
+    normalize_coordinates.normalize_coordinates(post_optimization_dir, output_folder_path)
+
+print(utils.to_red('Finished.'))

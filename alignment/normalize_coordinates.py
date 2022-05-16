@@ -4,7 +4,7 @@ from common.bounding_box import BoundingBox
 import json
 from common import utils
 
-overall_args = utils.load_json_file('../arguments/overall_args.json')
+overall_args = utils.load_json_file('arguments/overall_args.json')
 log_controller = utils.LogController('alignment', 'normalize_coordinates',
                                      os.path.join(overall_args["base"]["workspace"], 'log'))
 
@@ -39,18 +39,18 @@ def add_transformation(input_file_path: str, output_file_path: str, transform: d
         json.dump(data, f, indent=4)
  
 
-def normalize_coordinates(tile_file_path: str, output_folder_path: str):
+def normalize_coordinates(post_optimization_folder_path: str, output_folder_path: str):
     """
     Normalize coordinates
-    :param tile_file_path:
+    :param post_optimization_folder_path:
     :param output_folder_path:
     :return:
     """
     # Get all the files that need to be normalized
     all_files = []
-
-    log_controller.debug("Reading {}".format(tile_file_path))
-    for file_or_dir in tile_file_path:
+    post_optimization_folder_path = [str(post_optimization_folder_path)]
+    log_controller.debug("Reading {}".format(post_optimization_folder_path))
+    for file_or_dir in post_optimization_folder_path:
         if not os.path.exists(file_or_dir):
             log_controller.debug("{0} does not exist (file/directory), skipping".format(file_or_dir))
             continue
@@ -72,9 +72,9 @@ def normalize_coordinates(tile_file_path: str, output_folder_path: str):
     
     # merge the bounding boxes to a single bbox
     if len(all_files) > 0:
-        entire_image_bbox = BoundingBox.read_bbox_grep(all_files[0])
+        entire_image_bbox = BoundingBox.read_bbox_from_ts(utils.load_json_file((all_files[0])))
         for f in all_files:
-            entire_image_bbox.extend(BoundingBox.read_bbox_grep(f))
+            entire_image_bbox.extend(BoundingBox.read_bbox_from_ts(utils.load_json_file(f)))
     
     log_controller.debug("Entire 3D image bounding box: {}".format(entire_image_bbox))
 

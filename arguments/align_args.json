@@ -44,6 +44,7 @@
         "intra_slice_winsor": 200,
         "max_iterations": 5000,
         "min_stepsize": 1e-20,
-        "assumed_model": 3
+        "assumed_model": 3,
+        "debugged_layers": []
     }
 }

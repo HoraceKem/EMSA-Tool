@@ -13,9 +13,10 @@ from common.bounding_box import BoundingBox
 from common import utils
 import datetime
 
-# import pyximport
-# pyximport.install()
 from alignment import mesh_derivs_multibeam
+
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('alignment', 'optimize_mesh', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 FLOAT_TYPE = np.float64
 
@@ -35,7 +36,7 @@ class Mesh(object):
         self.pts += center
         self.orig_pts = self.pts.copy()
 
-        print("# points in base mesh {}".format(self.pts.shape[0]))
+        log_controller.debug("# points in base mesh {}".format(self.pts.shape[0]))
 
         # for neighbor searching and internal mesh
         self.triangulation = Delaunay(self.pts)
@@ -49,7 +50,7 @@ class Mesh(object):
         edge_indices = np.vstack({tuple(sorted(tuple(row))) for row in edge_indices}).astype(np.uint32)
         # mesh.pts[edge_indices, :].shape =(#edges, #pts-per-edge, #values-per-pt)
         edge_lengths = np.sqrt((np.diff(self.pts[edge_indices], axis=1) ** 2).sum(axis=2)).ravel()
-        # print("Median edge length:", np.median(edge_lengths), "Max edge length:", np.max(edge_lengths))
+        # log_controller.debug()("Median edge length:", np.median(edge_lengths), "Max edge length:", np.max(edge_lengths))
         triangles_as_pts = self.pts[simplices]
         triangle_areas = 0.5 * np.cross(triangles_as_pts[:, 2, :] - triangles_as_pts[:, 0, :],
                                         triangles_as_pts[:, 1, :] - triangles_as_pts[:, 0, :])
@@ -62,9 +63,9 @@ class Mesh(object):
         simplex_indices = self.triangulation.find_simplex(p1)
         if np.any(simplex_indices == -1):
             locs = np.where(simplex_indices == -1)
-            print("locations", locs)
-            print("points:", pts1[locs])
-            print("removing the above points")
+            log_controller.debug("locations:{}".format(locs))
+            log_controller.debug("points:{}".format(pts1[locs]))
+            log_controller.debug("removing the above points")
             pts1 = np.delete(pts1, locs, 0)
             pts2 = np.delete(pts2, locs, 0)
         return pts1, pts2
@@ -104,7 +105,7 @@ def blend(a, b, t):
 
 def mean_offsets(meshes, links, stop_at_ts, plot=False):
     means = []
-    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
+    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.items():
         if ts1 > stop_at_ts or ts2 > stop_at_ts:
             continue
         pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
@@ -120,14 +121,14 @@ def mean_offsets(meshes, links, stop_at_ts, plot=False):
             pylab.gca().autoscale()
 
         lens = np.sqrt(((pts1 - pts2) ** 2).sum(axis=1))
-        #print(np.mean(lens), np.min(lens), np.max(lens))
+        #log_controller.debug()(np.mean(lens), np.min(lens), np.max(lens))
         means.append(np.median(lens))
     return np.mean(means)
 
 
 def ts_mean_offsets(meshes, links, ts, plot=False):
     means = []
-    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
+    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.items():
         if ts not in (ts1, ts2):
             continue
         pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
@@ -143,13 +144,13 @@ def ts_mean_offsets(meshes, links, ts, plot=False):
             pylab.gca().autoscale()
 
         lens = np.sqrt(((pts1 - pts2) ** 2).sum(axis=1))
-        #print(np.mean(lens), np.min(lens), np.max(lens))
+        #log_controller.debug()(np.mean(lens), np.min(lens), np.max(lens))
         means.append(np.median(lens))
     return np.mean(means)
 
 
 def plot_offsets(meshes, links, ts, fname_prefix):
-    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
+    for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.items():
         if ts1 != ts:
             continue
         pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
@@ -241,22 +242,23 @@ def get_transform_matrix(pts1, pts2, type):
     elif type == 3:
         return Haffine_from_points(pts1, pts2)
     else:
-        print("Unsupported transformation model type")
+        log_controller.debug("Unsupported transformation model type")
         return None
 
 
 def optimize_meshes_links(meshes, links, layers, align_args):
-    print("Debugged layers: {}".format(align_args["debugged_layers"]))
+    log_controller.debug("Debugged layers: {}".format(align_args["optimize_mesh"]["debugged_layers"]))
     DEBUG_DIR = None
-    if len(align_args["debugged_layers"]) > 0:
-        align_args["debugged_layers"] = map(int, align_args["debugged_layers"].split(','))
+    if len(align_args["optimize_mesh"]["debugged_layers"]) > 0:
+        align_args["optimize_mesh"]["debugged_layers"] = map(int,
+                                                             align_args["optimize_mesh"]["debugged_layers"].split(','))
         DEBUG_DIR = os.path.join("debug_optimization", "logs_{}".format(datetime.datetime.now().isoformat()))
         if not os.path.exists(DEBUG_DIR):
             os.makedirs(DEBUG_DIR)
 
     # Build internal structural mesh
     # (edge_indices, edge_lengths, face_indices, face_areas)
-    structural_meshes = {ts: mesh.internal_structural_mesh() for ts, mesh in meshes.iteritems()}
+    structural_meshes = {ts: mesh.internal_structural_mesh() for ts, mesh in meshes.items()}
 
     # pre-optimization: rigid alignment of slices
     # TODO - sort by the layer and not by the meshes keys
@@ -264,30 +266,30 @@ def optimize_meshes_links(meshes, links, layers, align_args):
 
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
-        if layers[active_ts] in align_args["debugged_layers"]:
+        if layers[active_ts] in align_args["optimize_mesh"]["debugged_layers"]:
             pickle.dump([active_ts, meshes[active_ts].pts],
                         open(os.path.join(DEBUG_DIR, "pre_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
 
     for active_ts in sorted_slices[1:]:
-        print("Before affine (sec {}): {}".format(layers[active_ts], mean_offsets(meshes, links, active_ts, plot=False)))
+        log_controller.debug("Before affine (sec {}): {}".format(layers[active_ts], mean_offsets(meshes, links, active_ts, plot=False)))
         rot = 0
         tran = 0
         count = 0
         #all_H = np.zeros((3,3))
-        for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
+        for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.items():
             if active_ts in (ts1, ts2) and (ts1 <= active_ts) and (ts2 <= active_ts):
                 pts1 = np.einsum('ijk,ij->ik', meshes[ts1].pts[idx1], w1)
                 pts2 = np.einsum('ijk,ij->ik', meshes[ts2].pts[idx2], w2)
                 if ts1 == active_ts:
-                    cur_rot, cur_tran = get_transform_matrix(pts1, pts2, align_args["assumed_model"])
+                    cur_rot, cur_tran = get_transform_matrix(pts1, pts2, align_args["optimize_mesh"]["assumed_model"])
                 else:
-                    cur_rot, cur_tran = get_transform_matrix(pts2, pts1, align_args["assumed_model"])
+                    cur_rot, cur_tran = get_transform_matrix(pts2, pts1, align_args["optimize_mesh"]["assumed_model"])
                 # Average the affine transformation by the number of matches between the two sections
                 rot += pts1.shape[0] * cur_rot
                 tran += pts1.shape[0] * cur_tran
                 count += pts1.shape[0]
         if count == 0:
-            print("Error: no matches found for section {}.".format(active_ts))
+            log_controller.debug("Error: no matches found for section {}.".format(active_ts))
             sys.exit(1)
         #meshes[active_ts].pts = np.dot(meshes[active_ts].pts, rot / count) + (trans / count)
         # normalize the transformation
@@ -295,15 +297,15 @@ def optimize_meshes_links(meshes, links, layers, align_args):
         tran = tran * (1.0 / count)
         # transform the points
         meshes[active_ts].pts = np.dot(meshes[active_ts].pts, rot) + tran
-        print("After affine (sec {}): {}\n".format(layers[active_ts], mean_offsets(meshes, links, active_ts, plot=False)))
+        log_controller.debug("After affine (sec {}): {}\n".format(layers[active_ts], mean_offsets(meshes, links, active_ts, plot=False)))
 
     # TODO - make this faster by just iterating over the debugged layers
     for active_ts in sorted_slices:
-        if layers[active_ts] in align_args["debugged_layers"]:
+        if layers[active_ts] in align_args["optimize_mesh"]["debugged_layers"]:
             pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_affine_{}.pickle".format(os.path.basename(active_ts).replace(' ', '_'))), "w"))
             # plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_affine_{}.png".format(os.path.basename(active_ts).replace(' ', '_'))))
 
-    print("After preopt MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
+    log_controller.debug("After preopt MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
 
     stepsize = 0.0001
     momentum = 0.5
@@ -311,24 +313,23 @@ def optimize_meshes_links(meshes, links, layers, align_args):
     gradients_with_momentum = {ts: 0.0 for ts in meshes}
     old_pts = None
 
-
-    for iter in range(align_args["max_iterations"]):
+    for iter in range(align_args["optimize_mesh"]["max_iterations"]):
         cost = 0.0
 
-        gradients = {ts: np.zeros_like(mesh.pts) for ts, mesh in meshes.iteritems()}
+        gradients = {ts: np.zeros_like(mesh.pts) for ts, mesh in meshes.items()}
 
         # Compute the cost of the internal and external links
         for ts in meshes:
             cost += mesh_derivs_multibeam.internal_grad(meshes[ts].pts, gradients[ts],
                                               *((structural_meshes[ts]) +
-                                                (align_args["intra_slice_weight"], align_args["intra_slice_winsor"])))
-        for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.iteritems():
+                                                (align_args["optimize_mesh"]["intra_slice_weight"], align_args["optimize_mesh"]["intra_slice_winsor"])))
+        for (ts1, ts2), ((idx1, w1), (idx2, w2)) in links.items():
             cost += mesh_derivs_multibeam.external_grad(meshes[ts1].pts, meshes[ts2].pts,
                                               gradients[ts1], gradients[ts2],
                                               idx1, w1,
                                               idx2, w2,
-                                              align_args["cross_slice_weight"] / float(abs(layers[ts1] - layers[ts2])),
-                                                        align_args["cross_slice_winsor"])
+                                              align_args["optimize_mesh"]["cross_slice_weight"] / float(abs(layers[ts1] - layers[ts2])),
+                                                        align_args["optimize_mesh"]["cross_slice_winsor"])
 
         if cost < prev_cost and not np.isinf(cost):
             prev_cost = cost
@@ -338,26 +339,26 @@ def optimize_meshes_links(meshes, links, layers, align_args):
             # update with new gradients
             for ts in gradients_with_momentum:
                 gradients_with_momentum[ts] = gradients[ts] + momentum * gradients_with_momentum[ts]
-            old_pts = {ts: m.pts.copy() for ts, m in meshes.iteritems()}
+            old_pts = {ts: m.pts.copy() for ts, m in meshes.items()}
             for ts in meshes:
                 meshes[ts].pts -= stepsize * gradients_with_momentum[ts]
             # if iter % 500 == 0:
-            #     print("{} Good step: cost {}  stepsize {}".format(iter, cost, stepsize))
+            #     log_controller.debug()("{} Good step: cost {}  stepsize {}".format(iter, cost, stepsize))
         else:  # we took a bad step: undo it, scale down stepsize, and start over
             for ts in meshes:
                 meshes[ts].pts = old_pts[ts]
             stepsize *= 0.5
             gradients_with_momentum = {ts: 0 for ts in meshes}
             # if iter % 500 == 0:
-            #     print("{} Bad step: stepsize {}".format(iter, stepsize))
+            #     log_controller.debug()("{} Bad step: stepsize {}".format(iter, stepsize))
         if iter % 100 == 0:
-            print("iter {}: C: {}, MO: {}, S: {}".format(iter, cost, mean_offsets(meshes, links, sorted_slices[-1], plot=False), stepsize))
+            log_controller.debug("iter {}: C: {}, MO: {}, S: {}".format(iter, cost, mean_offsets(meshes, links, sorted_slices[-1], plot=False), stepsize))
 
         # Save animation for debugging
-        if len(align_args["debugged_layers"]) > 0:
+        if len(align_args["optimize_mesh"]["debugged_layers"]) > 0:
             # TODO - make this faster by just iterating over the debugged layers
             for active_ts in sorted_slices:
-                if layers[active_ts] in align_args["debugged_layers"]:
+                if layers[active_ts] in align_args["optimize_mesh"]["debugged_layers"]:
                     pickle.dump([active_ts, meshes[active_ts].pts], open(os.path.join(DEBUG_DIR, "post_iter{}_{}.pickle".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))), "w"))
                     #plot_points(meshes[active_ts].pts, os.path.join(DEBUG_DIR, "post_iter{}_{}.png".format(str(iter).zfill(5), os.path.basename(active_ts).replace(' ', '_'))))
 
@@ -366,14 +367,14 @@ def optimize_meshes_links(meshes, links, layers, align_args):
             assert not np.any(~ np.isfinite(meshes[ts].pts))
 
         # If stepsize is too small (won't make any difference), stop the iterations
-        if stepsize < align_args["min_stepsize"]:
+        if stepsize < align_args["optimize_mesh"]["min_stepsize"]:
             break
-    print("last MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
+    log_controller.debug("last MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
 
     if SHOW_FINAL_MO:
-        print("Final MO:")
+        log_controller.debug("Final MO:")
         for active_ts in sorted_slices:
-            print(" Section {}: {}".format(layers[active_ts], ts_mean_offsets(meshes, links, active_ts, plot=False)))
+            log_controller.debug(" Section {}: {}".format(layers[active_ts], ts_mean_offsets(meshes, links, active_ts, plot=False)))
 
     # Prepare per-layer output
     out_positions = {}
@@ -397,7 +398,7 @@ def optimize_meshes(match_files_list, hex_spacing, align_args):
     for match_file in match_files_list:
         # Assumes that the mesh can be separated into multiple files with the same tilespec1 or tilespec2
         data = None
-        print(match_file)
+        log_controller.debug(match_file)
         with open(match_file, 'r') as f:
             data = json.load(f)
         if not data["tilespec1"] in meshes:
@@ -409,9 +410,9 @@ def optimize_meshes(match_files_list, hex_spacing, align_args):
             # else:
             #     meshes[data["tilespec1"]] = Mesh(data["mesh"])
             tilespecs_file_path = data["tilespec1"].replace("file://","")
-            print("Generating Hexagonal Grid")
+            log_controller.debug("Generating Hexagonal Grid")
             bb = BoundingBox.read_bbox(tilespecs_file_path)
-            print("bounding_box: ", bb)
+            log_controller.debug("bounding_box: {}".format(bb))
             meshes[data["tilespec1"]] = Mesh(utils.generate_hexagonal_grid(bb, hex_spacing))
             ts_layer = utils.read_layer_from_tilespecs_file(tilespecs_file_path)
             layers[data["tilespec1"]] = ts_layer
