@@ -277,7 +277,7 @@ if __name__ == '__main__':
                                                            match_pmcc_params[i]['ts2'],
                                                            match_pmcc_params[i]['pre'],
                                                            match_pmcc_params[i]['pmcc_file_path'],
-                                                           match_pmcc_params[i]['mfov'], align_args, 1)
+                                                           match_pmcc_params[i]['mfov'], align_args)
             elif overall_args["base"]["running_mode"] == 'release':
                 pool_extract = mp.Pool(overall_args["multiprocess"]["pmcc_match"])
                 for i in range(len(match_pmcc_params)):
@@ -286,7 +286,7 @@ if __name__ == '__main__':
                                               match_pmcc_params[i]['ts2'],
                                               match_pmcc_params[i]['pre'],
                                               match_pmcc_params[i]['pmcc_file_path'],
-                                              match_pmcc_params[i]['mfov'], align_args, 1))
+                                              match_pmcc_params[i]['mfov'], align_args))
                 pool_extract.close()
                 pool_extract.join()
             j += 1

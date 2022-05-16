@@ -6,7 +6,6 @@ from scipy import spatial
 from common import utils
 from common.bounding_box import BoundingBox
 from alignment import PMCC_filter
-import multiprocessing as mp
 from renderer.tilespec_affine_renderer import TilespecAffineRenderer
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
@@ -178,21 +177,8 @@ def execute_pmcc_matching(img1_center_point, img1_to_img2_transform, img1_scaled
     return None
 
 
-def fetch_and_run(q_jobs, add_result_func, img1_to_img2_transform, img1_scaled_renderer,
-                  img2_scaled_renderer, align_args):
-    while True:
-        job = q_jobs.get(block=True)
-        if job is None:
-            break
-        r = execute_pmcc_matching(job, img1_to_img2_transform,
-                                  img1_scaled_renderer, img2_scaled_renderer, align_args)
-        if r is not None:
-            add_result_func(r)
-    log_controller.debug("Process {} is finished".format(os.getpid()))
-
-
 def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_matches_file_path, output_file_path,
-                               targeted_mfov, align_args, processes_num=1):
+                               targeted_mfov, align_args):
     log_controller.debug("Block-Matching+PMCC layers: {} with {} targeted mfov: {}".format(tilespecs_file_path1,
                                                                                            tilespecs_file_path2,
                                                                                            targeted_mfov))
@@ -269,22 +255,11 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
     img2_renderer.add_transformation(scale_transformation)
 
     # Execute PMCC Matching
-    log_controller.debug("Performing PMCC Matching with {} processes".format(processes_num))
-    # Allocate processes_num-1 other processes and initialize with the "static" data,
-    # and a queue for jobs and a queue for results
-    q_jobs = mp.Queue(maxsize=len(hex_grid))
-    # Creating the results queue using a manager, or otherwise we enter a deadlock because buffers aren't flushed
-    mp_manager = mp.Manager()
-    q_res = mp_manager.Queue(maxsize=len(hex_grid))
-
-    all_processes = [mp.Process(target=fetch_and_run,
-                                args=(q_jobs, lambda x: q_res.put(x), img1_to_img2_transform,
-                                      img1_renderer, img2_renderer, align_args)) for i in range(processes_num - 1)]
-    for p in all_processes:
-        p.start()
+    log_controller.debug("Performing PMCC Matching")
 
     # Iterate over the hexagonal grid points, and only check those that are part of the targeted mfov
     on_section_points_num = 0
+    point_matches = []
     for i in range(len(hex_grid)):
         # Find the tile image where the point from the hexagonal is in the first section
         img1_ind = get_closest_index_to_point(hex_grid[i], tile_centers1tree)
@@ -298,29 +273,9 @@ def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_m
         img1_point = np.array(hex_grid[i])
         on_section_points_num += 1
 
-        # Perform matching of that point
-        q_jobs.put(img1_point)
-
-    # Add empty jobs to end the execution of each process
-    for i in range(processes_num):
-        q_jobs.put(None)
-
-    # Used to store the results of the main process (and then all the results)
-    point_matches = []
-
-    # Use the main process to run jobs like any other process
-    fetch_and_run(q_jobs, lambda x: point_matches.append(x), img1_to_img2_transform,
-                  img1_renderer, img2_renderer, align_args)
-
-    # Wait for the termination of the other processes
-    log_controller.debug("Waiting for other processes to finish")
-    for p in all_processes:
-        p.join()
-
-    log_controller.debug("Collecting results")
-    while not q_res.empty():
-        r = q_res.get(block=True)
-        point_matches.append(r)
+        r = execute_pmcc_matching(img1_point, img1_to_img2_transform, img1_renderer, img2_renderer, align_args)
+        if r is not None:
+            point_matches.append(r)
 
     log_controller.debug("Found {} matches out of possible {} "
                          "points (on section points: {})".format(len(point_matches),
