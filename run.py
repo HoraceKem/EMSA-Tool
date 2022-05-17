@@ -162,11 +162,12 @@ if __name__ == '__main__':
                                                                             img_basename_no_ext1, img_basename_no_ext2))
                 # Add to lists
                 match_file_paths_list.append(match_path)
-                match_features_params.append({'feature_path1': feature_path1,
-                                              'feature_path2': feature_path2,
-                                              'tilespecs1': ts1,
-                                              'tilespecs2': ts2,
-                                              'match_path': match_path})
+                if not os.path.exists(match_path):
+                    match_features_params.append({'feature_path1': feature_path1,
+                                                  'feature_path2': feature_path2,
+                                                  'tilespecs1': ts1,
+                                                  'tilespecs2': ts2,
+                                                  'match_path': match_path})
         matching_pairs_num = len(match_features_params)
         log_controller.debug('Found {} pairs to be matched.'.format(matching_pairs_num))
 
@@ -304,6 +305,7 @@ if __name__ == '__main__':
         out_section = os.path.join(post_optimization_dir, '{}_{}'.format(str(layer).zfill(4), postfix))
         sections_opt_outputs.append(out_section)
 
+    print('Start optimizing 3d...')
     optimize_3d.optimize_layers_elastic([ts_list_file], [pmcc_list_file], post_optimization_dir, align_args)
 
     output_folder_path = os.path.join(workspace, "final_tilespecs")

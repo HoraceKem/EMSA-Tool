@@ -2,9 +2,9 @@
 	"base":
 	{
 		"running_mode": "release",
-		"EM_type": "singlebeam",
-        "workspace":"default_workspace",
-		"sample_folder":"data/singlebeam_test_dataset",
+		"EM_type": "multibeam",
+        "workspace":"/media/sem-lab/Hub5/default_workspace",
+		"sample_folder":"/media/sem-lab/Hub5/multibeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
 		"sample_name": "None",

@@ -26,6 +26,7 @@ def load_features(h5_file_path: str) -> [np.array, np.array]:
         log_controller.debug('The features are extracted from: {}'.format(image_url))
         locations = f["pts/locations"][...]
         descriptors = f["descs"][...]
+        f.close()
     return locations, descriptors
 
 
@@ -81,7 +82,7 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
     des2 = des2[features_mask2]
     good_matches = matching.__dict__[matching_type](des1, des2, parameters)
     if good_matches == ['NO_MATCH']:
-        log_controller.warning('No match!')
+        log_controller.debug('No match between {} and {}'.format(features1_path, features2_path))
         filtered_matches = [[], []]
         model_json = []
     else:
@@ -101,7 +102,7 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
         model_json = []
         if model is None:
             filtered_matches = [[], []]
-            log_controller.warning('No fit model!')
+            log_controller.debug('No fit model between {} and {}'.format(features1_path, features2_path))
         else:
             model_json = model.to_modelspec()
             log_controller.debug('Fit model: {}'.format(model_json))

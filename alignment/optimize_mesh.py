@@ -47,7 +47,7 @@ class Mesh(object):
         edge_indices = np.vstack((simplices[:, :2],
                                   simplices[:, 1:],
                                   simplices[:, [0, 2]]))
-        edge_indices = np.vstack({tuple(sorted(tuple(row))) for row in edge_indices}).astype(np.uint32)
+        edge_indices = np.vstack(tuple(sorted(tuple(row)) for row in edge_indices)).astype(np.uint32)
         # mesh.pts[edge_indices, :].shape =(#edges, #pts-per-edge, #values-per-pt)
         edge_lengths = np.sqrt((np.diff(self.pts[edge_indices], axis=1) ** 2).sum(axis=2)).ravel()
         # log_controller.debug()("Median edge length:", np.median(edge_lengths), "Max edge length:", np.max(edge_lengths))
@@ -219,7 +219,7 @@ def Haffine_from_points(fp, tp):
     # U,S,V = spLA.svd(A.T)
     # U,S,V = spLA.svds(A.T, k=3, ncv=50, maxiter=1e9, return_singular_vectors='vh') # doesn't work well
     # Randomized svd uses much less memory and is much faster than the numpy/scipy versions
-    U, S, V = randomized_svd(A.T, 4)
+    U, S, V = randomized_svd(A.T, 4, random_state=None)
 
     # create B and C matrices as Hartley-Zisserman (2:nd ed) p 130.
     tmp = V[:2].T
