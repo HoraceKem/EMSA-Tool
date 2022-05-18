@@ -5,9 +5,8 @@ import tinyr
 import cv2
 import time
 from enum import Enum
-import pyximport
-pyximport.install()
-from rh_renderer.blender.images_composer import PyImagesComposer
+from renderer.blender import images_composer
+
 
 class BlendType(Enum):
     NO_BLENDING = 0

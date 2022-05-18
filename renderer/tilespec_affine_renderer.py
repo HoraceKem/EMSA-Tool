@@ -1,6 +1,6 @@
 # Allows rendering a given tilespec
-from .multiple_tiles_affine_renderer import MultipleTilesAffineRenderer, BlendType
-from .single_tile_affine_renderer import SingleTileAffineRenderer
+from renderer.multiple_tiles_affine_renderer import MultipleTilesAffineRenderer, BlendType
+from renderer.single_tile_affine_renderer import SingleTileAffineRenderer
 import json
 import numpy as np
 from common import trans_models

@@ -6,7 +6,7 @@ from scipy import spatial
 from common import utils
 from common.bounding_box import BoundingBox
 from alignment import PMCC_filter
-from rh_renderer.tilespec_affine_renderer import TilespecAffineRenderer
+from renderer.tilespec_affine_renderer import TilespecAffineRenderer
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
 log_controller = utils.LogController('alignment', 'block', os.path.join(overall_args["base"]["workspace"], 'log'))

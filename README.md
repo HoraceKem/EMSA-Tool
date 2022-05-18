@@ -65,3 +65,14 @@ cd YOUR_PATH_TO_ANACONDA/envs/EMSA/lib/python3.9/site-packages
 ln -s ./cv2/python3.9/YOUR_CV2_SO_FILE_NAME cv2.so
 ```
 Here, YOUR_CV2_SO_FILE_NAME should be similar to 'cv2.cpython-39-x86_64-linux-gnu.so' in Linux.  
+5. Compile cython files and generate .so files which can be imported by Python:  
+Note that you still have to keep your EMSA environment activated.
+```shell
+cd YOUR_PATH_TO_EMSA_TOOL/alignment
+python setup.py build_ext --inplace
+cd ../renderer/blender
+export PKG_CONFIG_PATH=YOUR_PATH_TO_ANACONDA/envs/EMSA/lib/pkgconfig:$PKG_CONFIG_PATH
+python setup.py build_ext --inplace
+```
+6. Install tinyr:
+Please refer to the [tinyr](https://github.com/HoraceKem/tinyr) repo.

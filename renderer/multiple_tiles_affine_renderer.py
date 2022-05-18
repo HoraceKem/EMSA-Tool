@@ -3,6 +3,7 @@ import numpy as np
 import tinyr
 from enum import Enum
 
+
 class BlendType(Enum):
     NO_BLENDING = 0
     AVERAGING = 1

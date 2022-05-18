@@ -1,6 +1,6 @@
 # Allows rendering a given tilespec
-from .multiple_tiles_renderer import MultipleTilesRenderer, BlendType
-from .single_tile_renderer import SingleTileRenderer, SingleTileStaticRenderer
+from renderer.multiple_tiles_renderer import MultipleTilesRenderer, BlendType
+from renderer.single_tile_renderer import SingleTileRenderer, SingleTileStaticRenderer
 import numpy as np
 from common import trans_models
 import time
