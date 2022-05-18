@@ -40,37 +40,39 @@
 //
 //M*/
 
-#ifndef __RHOANA_OPENCV_STITCHING_SEAM_FINDERS_HPP__
-#define __RHOANA_OPENCV_STITCHING_SEAM_FINDERS_HPP__
+#ifndef __EMSA_OPENCV_STITCHING_SEAM_FINDERS_HPP__
+#define __EMSA_OPENCV_STITCHING_SEAM_FINDERS_HPP__
 
 #include <set>
-//#include <opencv2/core/core.hpp>
-//#include <opencv2/core/gpumat.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/opencv_modules.hpp>
 #include <opencv2/stitching/detail/seam_finders.hpp>
-
-#include <opencv2/core.hpp>
 
 namespace cv {
 namespace detail {
 
-
-class CV_EXPORTS RhoanaGraphCutSeamFinderBase
+/** @brief Base class for all minimum graph-cut-based seam estimators.
+ */
+class CV_EXPORTS EMSAGraphCutSeamFinderBase
 {
 public:
-    enum { COST_COLOR, COST_COLOR_GRAD };
+    enum CostType { COST_COLOR, COST_COLOR_GRAD };
 };
 
-
-class CV_EXPORTS RhoanaGraphCutSeamFinder : public RhoanaGraphCutSeamFinderBase, public SeamFinder
+/** @brief Minimum graph cut-based seam estimator. See details in @cite V03 .
+ */
+class CV_EXPORTS_W EMSAGraphCutSeamFinder : public EMSAGraphCutSeamFinderBase, public SeamFinder
 {
 public:
-    RhoanaGraphCutSeamFinder(int cost_type = COST_COLOR_GRAD, float terminal_cost = 10000.f,
+    EMSAGraphCutSeamFinder(int cost_type = COST_COLOR_GRAD, float terminal_cost = 10000.f,
                        float bad_region_penalty = 1000.f);
+    CV_WRAP EMSAGraphCutSeamFinder(String cost_type,float terminal_cost = 10000.f,
+        float bad_region_penalty = 1000.f);
 
-    ~RhoanaGraphCutSeamFinder();
+    ~EMSAGraphCutSeamFinder();
 
-    void find(const std::vector<UMat> &src, const std::vector<Point> &corners,
-              std::vector<UMat> &masks);
+    CV_WRAP void find(const std::vector<UMat> &src, const std::vector<Point> &corners,
+              std::vector<UMat> &masks) CV_OVERRIDE;
 
 private:
     // To avoid GCGraph dependency
@@ -78,45 +80,9 @@ private:
     Ptr<PairwiseSeamFinder> impl_;
 };
 
-
-#if 0
-class CV_EXPORTS GraphCutSeamFinderGpu : public GraphCutSeamFinderBase, public PairwiseSeamFinder
-{
-public:
-    GraphCutSeamFinderGpu(int cost_type = COST_COLOR_GRAD, float terminal_cost = 10000.f,
-                          float bad_region_penalty = 1000.f)
-#if defined(HAVE_OPENCV_GPU) && !defined(DYNAMIC_CUDA_SUPPORT)
-                          : cost_type_(cost_type),
-                            terminal_cost_(terminal_cost),
-                            bad_region_penalty_(bad_region_penalty)
-#endif
-    {
-        (void)cost_type;
-        (void)terminal_cost;
-        (void)bad_region_penalty;
-    }
-
-    void find(const std::vector<cv::Mat> &src, const std::vector<cv::Point> &corners,
-              std::vector<cv::Mat> &masks);
-    void findInPair(size_t first, size_t second, Rect roi);
-
-private:
-    void setGraphWeightsColor(const cv::Mat &img1, const cv::Mat &img2, const cv::Mat &mask1, const cv::Mat &mask2,
-                              cv::Mat &terminals, cv::Mat &leftT, cv::Mat &rightT, cv::Mat &top, cv::Mat &bottom);
-    void setGraphWeightsColorGrad(const cv::Mat &img1, const cv::Mat &img2, const cv::Mat &dx1, const cv::Mat &dx2,
-                                  const cv::Mat &dy1, const cv::Mat &dy2, const cv::Mat &mask1, const cv::Mat &mask2,
-                                  cv::Mat &terminals, cv::Mat &leftT, cv::Mat &rightT, cv::Mat &top, cv::Mat &bottom);
-    std::vector<Mat> dx_, dy_;
-#if defined(HAVE_OPENCV_GPU) && !defined(DYNAMIC_CUDA_SUPPORT)
-    int cost_type_;
-    float terminal_cost_;
-    float bad_region_penalty_;
-#endif
-};
-
-#endif /* 0 */
+//! @}
 
 } // namespace detail
 } // namespace cv
 
-#endif // __RHOANA_OPENCV_STITCHING_SEAM_FINDERS_HPP__
+#endif // __EMSA_OPENCV_STITCHING_SEAM_FINDERS_HPP__

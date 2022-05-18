@@ -96,11 +96,11 @@ cdef extern from "opencv2/core/types_c.h":
 #         float angle
 
 
-# cdef extern from "opencv2/core/types.hpp" namespace "cv":
+# cdef extern from "opencv2/core/core/types.hpp" namespace "cv":
 #     struct KeyPoint:
 #         pass
 # 
-# cdef extern from "opencv2/core/mat.hpp" namespace "cv":
+# cdef extern from "opencv2/core/core/mat.hpp" namespace "cv":
 #     cdef cppclass Mat:
 #         Mat() except +
 #         void create(int, int, int)

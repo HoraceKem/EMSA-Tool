@@ -2,9 +2,9 @@
 	"base":
 	{
 		"running_mode": "release",
-		"EM_type": "multibeam",
-        "workspace":"/media/sem-lab/Hub5/default_workspace",
-		"sample_folder":"/media/sem-lab/Hub5/multibeam_test_dataset",
+		"EM_type": "singlebeam",
+        "workspace":"default_workspace",
+		"sample_folder":"data/singlebeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
 		"sample_name": "None",
@@ -16,25 +16,14 @@
 		"match_features": 12,
 		"pmcc_match": 12
 	},
-	"pre_process":
-	{
-		"down_sampling":1,
-		"invert":0,
-		"histogram_match":0,
-		"histogram_match_file":"/home/sem-lab/Documents/ZHANG-LAB/001/Tile_r1-c1_001.tif",
-		"skip_layers":"1-165, 167-4392"
-	},
 	"stitching":
 	{
 		"features_type": "sift",
-		"matching_type": "flann",
-		"workspace_2d_postfix":"2d"
+		"matching_type": "flann"
 	},
 	"alignment":
 	{
-		"workspace_3d_postfix":"3d",
-		"max_layer_distance": 1,
-		"output_3d_postfix":"final_results"
+		"max_layer_distance": 1
 	},
 	"render":
 	{

@@ -292,13 +292,12 @@ if __name__ == '__main__':
             j += 1
             matched_after_layers += 1
 
-    # Step 3.3 Optimization
     ts_list_file = os.path.join(align_workspace, "all_ts_files.txt")
     utils.write_list_to_file(ts_list_file, all_ts_file_paths)
     pmcc_list_file = os.path.join(align_workspace, "all_pmcc_files.txt")
     utils.write_list_to_file(pmcc_list_file, all_pmcc_file_paths)
 
-    # Optimize all layers to a single 3d image
+    # Step 3.3 Optimize all layers to a single 3d image
     sections_opt_outputs = []
     for layer in included_layers:
         postfix = os.path.basename(layers_data[str(layer)]['stitched_tilespecs_json_file_path'])

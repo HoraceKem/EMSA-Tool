@@ -9,7 +9,6 @@ import pyximport
 pyximport.install()
 from rh_renderer.blender.images_composer import PyImagesComposer
 
-
 class BlendType(Enum):
     NO_BLENDING = 0
     AVERAGING = 1

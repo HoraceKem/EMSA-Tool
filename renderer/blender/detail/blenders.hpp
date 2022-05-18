@@ -40,57 +40,81 @@
 //
 //M*/
 
-#ifndef __RHOANA_OPENCV_STITCHING_BLENDERS_HPP__
-#define __ROHANA_OPENCV_STITCHING_BLENDERS_HPP__
+#ifndef __EMSA_OPENCV_STITCHING_BLENDERS_HPP__
+#define __EMSA_OPENCV_STITCHING_BLENDERS_HPP__
 
-//#include "opencv2/core/core.hpp"
+#if defined(NO)
+#  warning Detected Apple 'NO' macro definition, it can cause build conflicts. Please, include this header before any Apple headers.
+#endif
+
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/cuda.hpp>
 #include <opencv2/stitching/detail/exposure_compensate.hpp>
+
 
 namespace cv {
 namespace detail {
 
+//! @addtogroup stitching_blend
+//! @{
 
-// Simple blender which puts one image over another
-class CV_EXPORTS RhoanaBlender
+/** @brief Base class for all blenders.
+
+Simple blender which puts one image over another
+*/
+class CV_EXPORTS_W EMSABlender
 {
 public:
-    virtual ~RhoanaBlender() {}
+    virtual ~EMSABlender() {}
 
     enum { NO, FEATHER, MULTI_BAND };
-    static Ptr<RhoanaBlender> createDefault(int type, bool try_gpu = false);
+    CV_WRAP static Ptr<EMSABlender> createDefault(int type, bool try_gpu = false);
 
-    void prepare(const std::vector<Point> &corners, const std::vector<Size> &sizes);
-    virtual void prepare(Rect dst_roi);
-    //virtual void feed(const Mat &img, const Mat &mask, Point tl);
-    virtual void feed(InputArray img, InputArray mask, Point tl);
-    //virtual void blend(Mat &dst, Mat &dst_mask);
-    virtual void blend(InputOutputArray dst, InputOutputArray dst_mask);
+    /** @brief Prepares the blender for blending.
+
+    @param corners Source images top-left corners
+    @param sizes Source image sizes
+     */
+    CV_WRAP virtual void prepare(const std::vector<Point> &corners, const std::vector<Size> &sizes);
+    /** @overload */
+    CV_WRAP virtual void prepare(Rect dst_roi);
+    /** @brief Processes the image.
+
+    @param img Source image
+    @param mask Source image mask
+    @param tl Source image top-left corners
+     */
+    CV_WRAP virtual void feed(InputArray img, InputArray mask, Point tl);
+    /** @brief Blends and returns the final pano.
+
+    @param dst Final pano
+    @param dst_mask Final pano mask
+     */
+    CV_WRAP virtual void blend(CV_IN_OUT InputOutputArray dst,CV_IN_OUT  InputOutputArray dst_mask);
 
 protected:
     UMat dst_, dst_mask_;
     Rect dst_roi_;
 };
 
-
-class CV_EXPORTS RhoanaFeatherBlender : public RhoanaBlender
+/** @brief Simple blender which mixes images at its borders.
+ */
+class CV_EXPORTS_W EMSAFeatherBlender : public EMSABlender
 {
 public:
-    RhoanaFeatherBlender(float sharpness = 0.02f);
+    CV_WRAP EMSAFeatherBlender(float sharpness = 0.02f);
 
-    float sharpness() const { return sharpness_; }
-    void setSharpness(float val) { sharpness_ = val; }
+    CV_WRAP float sharpness() const { return sharpness_; }
+    CV_WRAP void setSharpness(float val) { sharpness_ = val; }
 
-    void prepare(Rect dst_roi);
-    //void feed(const Mat &img, const Mat &mask, Point tl);
-    void feed(InputArray img, InputArray mask, Point tl);
-    //void blend(Mat &dst, Mat &dst_mask);
-    void blend(InputOutputArray dst, InputOutputArray dst_mask);
+    CV_WRAP void prepare(Rect dst_roi) CV_OVERRIDE;
+    CV_WRAP void feed(InputArray img, InputArray mask, Point tl) CV_OVERRIDE;
+    CV_WRAP void blend(InputOutputArray dst, InputOutputArray dst_mask) CV_OVERRIDE;
 
-    // Creates weight maps for fixed set of source images by their masks and top-left corners.
-    // Final image can be obtained by simple weighting of the source images.
-    Rect createWeightMaps(const std::vector<UMat> &masks, const std::vector<Point> &corners,
-                          std::vector<UMat> &weight_maps);
+    //! Creates weight maps for fixed set of source images by their masks and top-left corners.
+    //! Final image can be obtained by simple weighting of the source images.
+    CV_WRAP Rect createWeightMaps(const std::vector<UMat> &masks, const std::vector<Point> &corners,
+        CV_IN_OUT std::vector<UMat> &weight_maps);
 
 private:
     float sharpness_;
@@ -98,22 +122,21 @@ private:
     UMat dst_weight_map_;
 };
 
-inline RhoanaFeatherBlender::RhoanaFeatherBlender(float _sharpness) { setSharpness(_sharpness); }
+inline EMSAFeatherBlender::EMSAFeatherBlender(float _sharpness) { setSharpness(_sharpness); }
 
-
-class CV_EXPORTS RhoanaMultiBandBlender : public RhoanaBlender
+/** @brief Blender which uses multi-band blending algorithm (see @cite BA83).
+ */
+class CV_EXPORTS_W EMSAMultiBandBlender : public EMSABlender
 {
 public:
-    RhoanaMultiBandBlender(int try_gpu = false, int num_bands = 5, int weight_type = CV_32F);
+    CV_WRAP EMSAMultiBandBlender(int try_gpu = false, int num_bands = 5, int weight_type = CV_32F);
 
-    int numBands() const { return actual_num_bands_; }
-    void setNumBands(int val) { actual_num_bands_ = val; }
+    CV_WRAP int numBands() const { return actual_num_bands_; }
+    CV_WRAP void setNumBands(int val) { actual_num_bands_ = val; }
 
-    void prepare(Rect dst_roi);
-    //void feed(const Mat &img, const Mat &mask, Point tl);
-    void feed(InputArray img, InputArray mask, Point tl);
-    //void blend(Mat &dst, Mat &dst_mask);
-    void blend(InputOutputArray dst, InputOutputArray dst_mask);
+    CV_WRAP void prepare(Rect dst_roi) CV_OVERRIDE;
+    CV_WRAP void feed(InputArray img, InputArray mask, Point tl) CV_OVERRIDE;
+    CV_WRAP void blend(CV_IN_OUT InputOutputArray dst, CV_IN_OUT InputOutputArray dst_mask) CV_OVERRIDE;
 
 private:
     int actual_num_bands_, num_bands_;
@@ -122,24 +145,42 @@ private:
     Rect dst_roi_final_;
     bool can_use_gpu_;
     int weight_type_; //CV_32F or CV_16S
+#if defined(HAVE_OPENCV_CUDAARITHM) && defined(HAVE_OPENCV_CUDAWARPING)
+    std::vector<cuda::GpuMat> gpu_dst_pyr_laplace_;
+    std::vector<cuda::GpuMat> gpu_dst_band_weights_;
+    std::vector<Point> gpu_tl_points_;
+    std::vector<cuda::GpuMat> gpu_imgs_with_border_;
+    std::vector<std::vector<cuda::GpuMat> > gpu_weight_pyr_gauss_vec_;
+    std::vector<std::vector<cuda::GpuMat> > gpu_src_pyr_laplace_vec_;
+    std::vector<std::vector<cuda::GpuMat> > gpu_ups_;
+    cuda::GpuMat gpu_dst_mask_;
+    cuda::GpuMat gpu_mask_;
+    cuda::GpuMat gpu_img_;
+    cuda::GpuMat gpu_weight_map_;
+    cuda::GpuMat gpu_add_mask_;
+    int gpu_feed_idx_;
+    bool gpu_initialized_;
+#endif
 };
 
 
 //////////////////////////////////////////////////////////////////////////////
 // Auxiliary functions
 
-void CV_EXPORTS normalizeUsingWeightMap(InputArray weight, InputOutputArray src);
+void CV_EXPORTS_W normalizeUsingWeightMap(InputArray weight, CV_IN_OUT InputOutputArray src);
 
-void CV_EXPORTS createWeightMap(InputArray mask, float sharpness, InputOutputArray weight);
+void CV_EXPORTS_W createWeightMap(InputArray mask, float sharpness, CV_IN_OUT InputOutputArray weight);
 
-void CV_EXPORTS createLaplacePyr(InputArray img, int num_levels, std::vector<UMat>& pyr);
-void CV_EXPORTS createLaplacePyrGpu(InputArray img, int num_levels, std::vector<UMat>& pyr);
+void CV_EXPORTS_W createLaplacePyr(InputArray img, int num_levels, CV_IN_OUT std::vector<UMat>& pyr);
+void CV_EXPORTS_W createLaplacePyrGpu(InputArray img, int num_levels, CV_IN_OUT std::vector<UMat>& pyr);
 
 // Restores source image
-void CV_EXPORTS restoreImageFromLaplacePyr(std::vector<UMat>& pyr);
-void CV_EXPORTS restoreImageFromLaplacePyrGpu(std::vector<UMat>& pyr);
+void CV_EXPORTS_W restoreImageFromLaplacePyr(CV_IN_OUT std::vector<UMat>& pyr);
+void CV_EXPORTS_W restoreImageFromLaplacePyrGpu(CV_IN_OUT std::vector<UMat>& pyr);
+
+//! @}
 
 } // namespace detail
 } // namespace cv
 
-#endif // __RHOANA_OPENCV_STITCHING_BLENDERS_HPP__
+#endif // OPENCV_STITCHING_BLENDERS_HPP

@@ -6,7 +6,7 @@
 #include <iostream>
 #include <opencv2/core/core.hpp>
 //#include <opencv2/features2d.hpp>
-#include <opencv2/stitching/warpers.hpp>
+#include <opencv2/stitching/detail/warpers.hpp>
 //#include <opencv2/stitching/detail/matchers.hpp>
 #include <opencv2/stitching/detail/motion_estimators.hpp>
 //#include <opencv2/stitching/detail/exposure_compensate.hpp>
@@ -32,7 +32,7 @@ void convertToRGBImages(std::vector<UMat> &images)
     for (size_t i = 0; i < images.size(); i++)
     {
         assert(images[i].channels() == 1);
-        cvtColor(images[i], images[i], CV_GRAY2RGB);
+        cvtColor(images[i], images[i], COLOR_GRAY2RGB);
     }
 }
 
@@ -51,14 +51,14 @@ int ImagesComposer::compose_panorama(
     double work_scale_ = 1;
     //double seam_work_aspect_ = 1;
     ///Ptr<detail::SeamFinder> seam_finder_(makePtr<detail::GraphCutSeamFinder>(detail::GraphCutSeamFinderBase::COST_COLOR));
-    Ptr<detail::SeamFinder> seam_finder_(makePtr<detail::RhoanaGraphCutSeamFinder>(detail::RhoanaGraphCutSeamFinderBase::COST_COLOR));
+    Ptr<detail::SeamFinder> seam_finder_(makePtr<detail::EMSAGraphCutSeamFinder>(detail::EMSAGraphCutSeamFinderBase::COST_COLOR));
     //Ptr<detail::SeamFinder> seam_finder_(makePtr<detail::GraphCutSeamFinder>(detail::GraphCutSeamFinderBase::COST_COLOR_GRAD));
     ///Ptr<detail::ExposureCompensator> exposure_comp_(makePtr<detail::BlocksGainCompensator>());
-    Ptr<detail::ExposureCompensator> exposure_comp_(makePtr<detail::RhoanaGainCompensator>());
+    Ptr<detail::ExposureCompensator> exposure_comp_(makePtr<detail::EMSAGainCompensator>());
     //Ptr<detail::ExposureCompensator> exposure_comp_(makePtr<detail::GainCompensator>());
     //Ptr<detail::ExposureCompensator> exposure_comp_(makePtr<detail::NoExposureCompensator>());
     ///Ptr<detail::Blender> blender_(makePtr<detail::MultiBandBlender>(false));
-    Ptr<detail::RhoanaBlender> blender_(makePtr<detail::RhoanaMultiBandBlender>(false));
+    Ptr<detail::EMSABlender> blender_(makePtr<detail::EMSAMultiBandBlender>(false));
     //Ptr<detail::Blender> blender_(makePtr<detail::FeatherBlender>());
     //Ptr<detail::Blender> blender_(makePtr<detail::Blender>());
 
@@ -120,7 +120,7 @@ int ImagesComposer::compose_panorama(
         warped_seams_images[i].convertTo(warped_seams_images_f[i], CV_32F);
     seam_finder_->find(warped_seams_images_f, warped_seams_corners, warped_seams_masks);
 
-    LOGLN("Adi debug 2");
+    LOGLN("EMSA debug 2");
 
     // Release unused memory
     //seam_est_imgs_.clear();
