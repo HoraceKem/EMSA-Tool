@@ -18,6 +18,8 @@ the PC environment and provides multiple acceleration methods: numba jit, numba 
 
 
 ## II Environment
+EMSA-Tool is now tested on Linux platform (Ubuntu 18.04), so currently we cannot ensure the 
+compatibility of Windows nor macOS.  
 Because of the potential dependencies' problem, we strongly recommend you preparing a brand new virtual 
 environment(here we use Anaconda) as follows:  
 *Tip: THE_UPPERCASE_WITH_UNDERLINE should be changed by yourself.*
@@ -26,7 +28,7 @@ environment(here we use Anaconda) as follows:
 conda create -n EMSA python=3.9
 conda activate EMSA
 ```
-2. (Optional) Using ```nvidia-smi``` to confirm your CUDA version and prepare the CUDA in the python environment:
+2. Using ```nvidia-smi``` to confirm your CUDA version and prepare the CUDA in the python environment:
 ```shell
 conda install cudatoolkit=YOUR_CUDA_VERSION
 ```
@@ -77,3 +79,6 @@ python setup.py build_ext --inplace
 ```
 6. Install tinyr:
 Please refer to the [tinyr](https://github.com/HoraceKem/tinyr) repo.
+
+## III How to use
+1. Prepare your data
