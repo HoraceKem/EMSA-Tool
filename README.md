@@ -1,8 +1,9 @@
 # EMSA-Tool
 ## I Introduction
 A tool for large-scale EM images stitching and alignment. This repo is a secondary development based 
-on [rh-aligner](https://github.com/Rhoana/rh_aligner)(Copyright@Adi Peleg, VCG Group, Harvard University).
-Compared to the Adi's version, EMSA-Tool has the following modifications: 
+on [rh-aligner](https://github.com/Rhoana/rh_aligner) and [rh-renderer](https://github.com/Rhoana/rh_renderer)
+(Copyright@Adi Peleg, VCG Group, Harvard University). Compared to the Adi's version, EMSA-Tool has 
+the following modifications: 
 1. **Up-to-date.** All the Python2 codes are deprecated and have been rewritten in the Python3 style. 
 The important dependence OpenCV also upgrades from 2.x to the latest 4.5.
 2. **Unified style names.** The S&A processing contains many I/O operations and proper nouns.
@@ -65,8 +66,8 @@ cd YOUR_PATH_TO_ANACONDA/envs/EMSA/lib/python3.9/site-packages
 ln -s ./cv2/python3.9/YOUR_CV2_SO_FILE_NAME cv2.so
 ```
 Here, YOUR_CV2_SO_FILE_NAME should be similar to 'cv2.cpython-39-x86_64-linux-gnu.so' in Linux.  
-5. Compile cython files and generate .so files which can be imported by Python:  
-Note that you still have to keep your EMSA environment activated.
+
+5. Compile cython files and generate .so files which can be imported by Python:
 ```shell
 cd YOUR_PATH_TO_EMSA_TOOL/alignment
 python setup.py build_ext --inplace

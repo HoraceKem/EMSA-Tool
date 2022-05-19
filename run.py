@@ -307,16 +307,23 @@ if __name__ == '__main__':
         sections_opt_outputs.append(out_section)
 
     print('Start optimizing 3d...')
-    optimize_3d.optimize_layers_elastic([ts_list_file], [pmcc_list_file], post_optimization_dir, align_args)
-
     output_folder_path = os.path.join(workspace, "final_tilespecs")
     utils.create_dir(output_folder_path)
-    # Normalize the output files to the (0, 0) coordinates
-    sections_outputs = []
-    for section_opt_output in sections_opt_outputs:
-        out_section = os.path.join(output_folder_path, os.path.basename(section_opt_output))
-        sections_outputs.append(out_section)
-    normalize_coordinates.normalize_coordinates(post_optimization_dir, output_folder_path)
+    existing_aligned_tilespecs_files = utils.ls_absolute_paths(output_folder_path)
+    aligned_flag = True
+    for layer in included_layers:
+        aligned_tilespecs_file = os.path.join(output_folder_path, 'Sec_{}_aligned.json'.format(str(layer).zfill(4)))
+        if not aligned_tilespecs_file in existing_aligned_tilespecs_files:
+            aligned_flag = False
+            break
+    if not aligned_flag:
+        optimize_3d.optimize_layers_elastic([ts_list_file], [pmcc_list_file], post_optimization_dir, align_args)
+        sections_outputs = []
+        for section_opt_output in sections_opt_outputs:
+            out_section = os.path.join(output_folder_path, os.path.basename(section_opt_output))
+            sections_outputs.append(out_section)
+        # Normalize the output files to the (0, 0) coordinates
+        normalize_coordinates.normalize_coordinates(post_optimization_dir, output_folder_path)
     cur_tilespecs_folder_path = output_folder_path
 
     # Step 4: Render the tilespecs to images.
@@ -335,66 +342,53 @@ if __name__ == '__main__':
         entire_image_bbox.extend(bounding_box.BoundingBox.read_bbox_from_ts(utils.load_json_file(tilespecs_path)))
     log_controller.debug("Final bbox for the 3d image: {}".format(entire_image_bbox))
 
+    from_x = overall_args["renderer"]["from_x"]
+    from_y = overall_args["renderer"]["from_y"]
+    to_x = overall_args["renderer"]["to_x"]
+    to_y = overall_args["renderer"]["to_y"]
+    if from_x == 0:
+        from_x = int(math.floor(entire_image_bbox[0]))
+    if from_y == 0:
+        from_y = int(math.floor(entire_image_bbox[2]))
+    if to_x == -1:
+        to_x = int(math.ceil(entire_image_bbox[1]))
+    if to_y == -1:
+        to_y = int(math.ceil(entire_image_bbox[3]))
+    in_bbox = [from_x, to_x, from_y, to_y]
+
+    render_params = []
+    # Collect rendering parameters
     for i in range(len(tilespecs_paths_list)):
-        spec_path = tilespecs_paths_list[i]
-        sec_index = int(os.path.basename(spec_path).split('_')[1].replace('Sec', ''))
-        # if sec_index < 2500:
-        #     continue
-        # render_dir = os.path.join(render_folder, os.path.basename(spec_path).split('_')[1])
-        # utils.create_dir(render_dir)
-        from_x = overall_args["renderer"]["from_x"]
-        from_y = overall_args["renderer"]["from_y"]
-        to_x = overall_args["renderer"]["to_x"]
-        to_y = overall_args["renderer"]["to_y"]
-        if from_x == 0:
-            from_x = int(math.floor(entire_image_bbox[0]))
-        if from_y == 0:
-            from_y = int(math.floor(entire_image_bbox[2]))
-        if to_x == -1:
-            to_x = int(math.ceil(entire_image_bbox[1]))
-        if to_y == -1:
-            to_y = int(math.ceil(entire_image_bbox[3]))
+        layer = int(os.path.basename(tilespecs_paths_list[i]).split('_')[1])
+        render_params.append({
+            "tilespecs_file_path": tilespecs_paths_list[i],
+            "layer": layer,
+            "save_folder_path": os.path.join(mip_folder_path, 'Sec_{}'.format(str(layer).zfill(4)))
+        })
 
-        in_bbox = [from_x, to_x, from_y, to_y]
-
-        image_bbox = bounding_box.BoundingBox.fromList(in_bbox)
-
-        scaled_bbox = bounding_box.BoundingBox(
-            int(math.floor(image_bbox.from_x * scale)),
-            int(math.ceil(image_bbox.to_x * scale)),
-            int(math.floor(image_bbox.from_y * scale)),
-            int(math.ceil(image_bbox.to_y * scale))
-        )
-        # Set the post-scale out shape of the image
-        out_shape = (scaled_bbox.to_x - scaled_bbox.from_x, scaled_bbox.to_y - scaled_bbox.from_y)
-        log_controller.debug("Final out_shape for the image: {}".format(out_shape))
-        actual_shape = (image_bbox.to_x - image_bbox.from_x, image_bbox.to_y - image_bbox.from_y)
-        rows = int(math.ceil(actual_shape[1] / float(overall_args["renderer"]["tile_size"])))
-        cols = int(math.ceil(actual_shape[0] / float(overall_args["renderer"]["tile_size"])))
-
-        from_row = 0
-        from_col = 0
-        to_row = rows
-        to_col = cols
-
-        bbox_list = []
-        output_name = []
-        for cur_row in range(from_row, to_row):
-            from_y = image_bbox.from_y + cur_row * overall_args["renderer"]["tile_size"]
-            to_y = min(image_bbox.from_y + (cur_row + 1) * overall_args["renderer"]["tile_size"], image_bbox.to_y)
-            for cur_col in range(from_col, to_col):
-                from_x = image_bbox.from_x + cur_col * overall_args["renderer"]["tile_size"]
-                to_x = min(image_bbox.from_x + (cur_col + 1) * overall_args["renderer"]["tile_size"], image_bbox.to_x)
-                # out_fname = "{}_tr{}-tc{}.{}".format(os.path.join(render_dir, arg["sample_name"]), str(cur_row + 1), str(cur_col + 1), arg["file_type"])
-                out_fname = "{}_tr{}-tc{}.{}".format(os.path.join(mip_folder_path, str(sec_index).zfill(3)), str(cur_row + 1),
-                                                     str(cur_col + 1), overall_args["renderer"]["file_type"])
-                bbox_list.append([math.floor(from_x), math.floor(to_x), from_y, to_y])
-                output_name.append(out_fname)
-        pool = mp.Pool(overall_args["multiprocess"]["render"])
-        for i in range(len(bbox_list)):
-            pool.apply_async(render_driver.render_tilespec, (spec_path, output_name[i], scale, 'png', bbox_list[i],
-                                                             0, overall_args["renderer"]["invert_image"]))
-        pool.close()
-        pool.join()
-
+    if overall_args["base"]["running_mode"] == 'debug':
+        for i in tqdm(range(len(render_params))):
+            render_driver.render_tilespec(render_params[i]["tilespecs_file_path"],
+                                          render_params[i]["save_folder_path"],
+                                          render_params[i]["layer"],
+                                          scale,
+                                          overall_args["renderer"]["file_type"],
+                                          in_bbox,
+                                          overall_args["renderer"]["tile_size"],
+                                          overall_args["renderer"]["invert_image"],
+                                          overall_args["renderer"]["blend_type"])
+    elif overall_args["base"]["running_mode"] == 'release':
+        pool_render = mp.Pool(overall_args["multiprocess"]["render"])
+        for i in range(len(render_params)):
+            pool_render.apply_async(render_driver.render_tilespec, (render_params[i]["tilespecs_file_path"],
+                                                                    render_params[i]["save_folder_path"],
+                                                                    render_params[i]["layer"],
+                                                                    scale,
+                                                                    overall_args["renderer"]["file_type"],
+                                                                    in_bbox,
+                                                                    overall_args["renderer"]["tile_size"],
+                                                                    overall_args["renderer"]["invert_image"],
+                                                                    overall_args["renderer"]["blend_type"]))
+        pool_render.close()
+        pool_render.join()
 print(utils.to_red('Finished.'))

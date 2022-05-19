@@ -12,6 +12,8 @@ class SingleTileAffineRenderer:
                  transformation_models=[],
                  compute_mask=False,
                  compute_distances=True):
+        self.corners = None
+        self.img = None
         self.img_path = img_path
         self.width = width
         self.height = height
@@ -38,7 +40,8 @@ class SingleTileAffineRenderer:
 
     def add_transformation(self, transform_matrix, update_corners=True):
         assert(transform_matrix.shape == (2, 3))
-        self.transform_matrix = np.dot(np.vstack((transform_matrix, [0., 0., 1.])), np.vstack((self.transform_matrix, [0., 0., 1.])))[:2]
+        self.transform_matrix = np.dot(np.vstack((transform_matrix, [0., 0., 1.])),
+                                       np.vstack((self.transform_matrix, [0., 0., 1.])))[:2]
         if update_corners:
             self.update_img_transformed_corners_and_bbox()
 
@@ -47,7 +50,7 @@ class SingleTileAffineRenderer:
         self.img = None
 
     def get_start_point(self):
-        return (self.bbox[0], self.bbox[2])
+        return self.bbox[0], self.bbox[2]
 
     def get_bbox(self):
         return self.bbox
@@ -81,7 +84,7 @@ class SingleTileAffineRenderer:
         return self.img, (self.bbox[0], self.bbox[2])
 
     def fetch_mask(self):
-        assert(self.compute_mask)
+        assert self.compute_mask
 
         if not self.already_rendered:
             self.render()
@@ -92,7 +95,8 @@ class SingleTileAffineRenderer:
         """Returns the cropped image, its starting point, and the cropped mask (if the mask was computed).
            The given coordinates are specified using world coordinates."""
         # find the overlapping area of the given coordinates and the transformed tile
-        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]), max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
+        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]),
+                            max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
@@ -105,17 +109,22 @@ class SingleTileAffineRenderer:
         cropped_img = self.img[int(overlapping_area[2] - self.bbox[2]):int(overlapping_area[3] - self.bbox[2] + 1),
                                int(overlapping_area[0] - self.bbox[0]):int(overlapping_area[1] - self.bbox[0] + 1)]
         if self.compute_mask:
-            cropped_mask = self.mask[int(overlapping_area[2] - self.bbox[2]):int(overlapping_area[3] - self.bbox[2] + 1),
-                                     int(overlapping_area[0] - self.bbox[0]):int(overlapping_area[1] - self.bbox[0] + 1)]
+            cropped_mask = self.mask[int(overlapping_area[2] - self.bbox[2]):
+                                     int(overlapping_area[3] - self.bbox[2] + 1),
+                                     int(overlapping_area[0] - self.bbox[0]):
+                                     int(overlapping_area[1] - self.bbox[0] + 1)]
         # Take only the parts that are overlapping
         return cropped_img, (overlapping_area[0], overlapping_area[2]), cropped_mask
 
     def crop_with_distances(self, from_x, from_y, to_x, to_y):
-        """Returns the cropped image, its starting point, and the cropped image L1 distances of each pixel inside the image from the edge
-           of the rendered image (if the mask was computed).
-           The given coordinates are specified using world coordinates."""
+        """
+        Returns the cropped image, its starting point, and the cropped image L1 distances of each pixel inside the
+        image from the edge of the rendered image (if the mask was computed).
+        The given coordinates are specified using world coordinates.
+        """
         # find the overlapping area of the given coordinates and the transformed tile
-        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]), max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
+        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]),
+                            max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
@@ -129,25 +138,22 @@ class SingleTileAffineRenderer:
                                int(overlapping_area[0] - self.bbox[0]):int(overlapping_area[1] - self.bbox[0] + 1)]
 
         if self.compute_distances:
-            cropped_distances = self.weights[int(overlapping_area[2] - self.bbox[2]):int(overlapping_area[3] - self.bbox[2] + 1),
-                                             int(overlapping_area[0] - self.bbox[0]):int(overlapping_area[1] - self.bbox[0] + 1)]
+            cropped_distances = self.weights[int(overlapping_area[2] - self.bbox[2]):
+                                             int(overlapping_area[3] - self.bbox[2] + 1),
+                                             int(overlapping_area[0] - self.bbox[0]):
+                                             int(overlapping_area[1] - self.bbox[0] + 1)]
            
         # Take only the parts that are overlapping
         return cropped_img, (overlapping_area[0], overlapping_area[2]), cropped_distances
 
-
-
     # Helper methods (shouldn't be used from the outside)
     def update_img_transformed_corners_and_bbox(self):
         pts = np.array([[0., 0.], [self.width - 1, 0.], [self.width - 1, self.height - 1], [0., self.height - 1]])
-        self.corners = np.dot(self.transform_matrix[:2,:2], pts.T).T + np.asarray(self.transform_matrix.T[2][:2]).reshape((1, 2))
+        self.corners = np.dot(self.transform_matrix[:2, :2], pts.T).T + \
+                       np.asarray(self.transform_matrix.T[2][:2]).reshape((1, 2))
         min_XY = np.min(self.corners, axis=0)
         max_XY = np.max(self.corners, axis=0)
         # Rounding to avoid float precision errors due to representation
-        self.bbox = [int(math.floor(round(min_XY[0], 5))), int(math.ceil(round(max_XY[0], 5))), int(math.floor(round(min_XY[1], 5))), int(math.ceil(round(max_XY[1], 5)))]
-        #self.bbox = [int(min_XY[0] + math.copysign(0.5, min_XY[0])), int(max_XY[0] + math.copysign(0.5, max_XY[1])), int(min_XY[1] + math.copysign(0.5, min_XY[1])), int(max_XY[1] + math.copysign(0.5, max_XY[1]))]
+        self.bbox = [int(math.floor(round(min_XY[0], 5))), int(math.ceil(round(max_XY[0], 5))),
+                     int(math.floor(round(min_XY[1], 5))), int(math.ceil(round(max_XY[1], 5)))]
         self.shape = (self.bbox[1] - self.bbox[0] + 1, self.bbox[3] - self.bbox[2] + 1)
-
-
-
-

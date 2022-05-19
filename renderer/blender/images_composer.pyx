@@ -8,16 +8,11 @@ import numpy as np
 cimport numpy as np
 cimport cython
 import cv2
-cimport numpy as np # for np.ndarray
-from libcpp.string cimport string
+cimport numpy as np
 from cython.operator import dereference
-#from libc.string cimport memcpy
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
-#ctypedef void* int_parameter
-#ctypedef int_parameter two "2"
-#ctypedef Point_[float, two] Point2f
 
 
 cdef class WrappedMat:
@@ -89,35 +84,6 @@ cdef extern from "opencv2/core/types_c.h":
         CV_32SC3
         CV_32SC4
 
-# cdef extern from "opencv2/features2d/features2d.hpp" namespace "cv":
-#     cdef cppclass KeyPoint:
-#         Point_[float] pt
-#         float size
-#         float angle
-
-
-# cdef extern from "opencv2/core/core/types.hpp" namespace "cv":
-#     struct KeyPoint:
-#         pass
-# 
-# cdef extern from "opencv2/core/core/mat.hpp" namespace "cv":
-#     cdef cppclass Mat:
-#         Mat() except +
-#         void create(int, int, int)
-#         void* data
-#     #struct InputArray:
-#     #    pass
-
-# cdef void ary2cvMat(np.ndarray ary, Mat& out):
-#     assert(ary.ndim==2 and ary.shape[2]==2, "ASSERT::2channel grayscale only!!")
-#      
-#     cdef np.ndarray[np.uint8_t, ndim=2, mode = 'c'] np_buff = np.ascontiguousarray(ary, dtype = np.uint8)
-#     cdef unsigned int* im_buff = <unsigned int*> np_buff.data
-#     cdef int r = ary.shape[0]
-#     cdef int c = ary.shape[1]
-#     out.create(r, c, CV_8UC3)
-#     memcpy(out.data, im_buff, r*c*3)
-
 cdef mat2numpy(Mat mat):
     cdef np.npy_intp dims[3]
     assert mat.isContinuous()
@@ -163,17 +129,8 @@ cdef Mat numpy2mat(img):
             print("Unknown image properties: shape:", img.shape, "type:", img.dtype)
             assert False
 
-# cdef populate_img_vector(in_list, out_vec):
-#     for element in in_list:
-#         out_vec.push_back(InputArray(numpy2mat(element)))
-# 
-# cdef populate_point_vector(in_list, out_vec):
-#     for element in in_list:
-#         out_vec.push_back(Point(element[0], element[1]))
-
 
 cdef extern from "ImagesComposer.hpp":
-
     cdef cppclass ImagesComposer:
         @staticmethod
         int compose_panorama(
@@ -182,8 +139,8 @@ cdef extern from "ImagesComposer.hpp":
             InputArrayOfArrays in_warped_seams_images, InputArrayOfArrays in_warped_seams_masks, vector[Point]& in_warped_seams_corners,
             OutputArray pano)
 
-cdef class PyImagesComposer:
 
+cdef class PyImagesComposer:
     @staticmethod
     def compose_panorama(warped_images, warped_masks, warped_corners,
                          seam_scale, warped_seams_images, warped_seams_masks, warped_seams_corners):
@@ -217,13 +174,6 @@ cdef class PyImagesComposer:
         for element in warped_seams_corners:
             in_warped_seams_corners.push_back(Point(element[0], element[1]))
 
-#         populate_img_vector(warped_masks, in_warped_masks)
-#         populate_point_vector(warped_corners, in_warped_corners)
-#         populate_img_vector(warped_seams_images, in_warped_seams_images)
-#         populate_img_vector(warped_seams_masks, in_warped_seams_masks)
-#         populate_point_vector(warped_seams_corners, in_warped_seams_corners)
-
-        #print("compose panorma called")
         ImagesComposer.compose_panorama(
             InputArray(in_warped_images), InputArray(in_warped_masks), in_warped_corners,
             seam_scale,

@@ -2,9 +2,9 @@
 	"base":
 	{
 		"running_mode": "release",
-		"EM_type": "singlebeam",
-        "workspace":"default_workspace",
-		"sample_folder":"data/singlebeam_test_dataset",
+		"EM_type": "multibeam",
+        "workspace":"/media/sem-lab/Hub5/default_workspace",
+		"sample_folder":"/media/sem-lab/Hub5/multibeam_test_dataset",
 		"split_tile_size": 0,
 		"stitching": 0,
 		"sample_name": "None",
@@ -13,8 +13,8 @@
 	"multiprocess":
 	{
 		"extract_features": 8,
-		"match_features": 12,
-		"pmcc_match": 12,
+		"match_features": 8,
+		"pmcc_match": 8,
 		"render": 8
 	},
 	"stitching":
@@ -33,9 +33,9 @@
 		"from_y":0,
 		"to_x":-1,
 		"to_y":-1,
-		"tile_size":2048,
+		"tile_size":4096,
 		"file_type":"png",
 		"invert_image":1,
-		"scale":1
+		"blend_type": 2
 	}
 }

@@ -90,5 +90,5 @@ def normalize_coordinates(post_optimization_folder_path: str, output_folder_path
 
     # Add the transformation to each tile in each tilespec
     for in_file in all_files:
-        out_file = os.path.join(output_folder_path, os.path.basename(in_file))
+        out_file = os.path.join(output_folder_path, os.path.basename(in_file).replace('montaged', 'aligned'))
         add_transformation(in_file, out_file, transform, [delta_x, delta_y])

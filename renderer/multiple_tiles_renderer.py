@@ -6,6 +6,11 @@ import cv2
 import time
 from enum import Enum
 from renderer.blender import images_composer
+from common import utils
+import os
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('render', 'multiple_tiles_renderer',
+                                     os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 class BlendType(Enum):
@@ -14,13 +19,8 @@ class BlendType(Enum):
     LINEAR = 2
     MULTI_BAND_SEAM = 3
 
-class MultipleTilesRenderer:
-    BLEND_TYPE = {
-            "NO_BLENDING" : 0,
-            "AVERAGING" : 1,
-            "LINEAR" : 2
-        }
 
+class MultipleTilesRenderer:
     def __init__(self, single_tiles, blend_type=BlendType.NO_BLENDING, dtype=np.uint8):
         """Receives a number of image paths, and for each a transformation matrix"""
         self.blend_type = blend_type
@@ -32,9 +32,6 @@ class MultipleTilesRenderer:
             bbox = t.get_bbox()
             # using the (x_min, y_min, x_max, y_max) notation
             self.rtree.insert(t, (bbox[0], bbox[2], bbox[1], bbox[3]))
-        #should_compute_mask = False if self.blend_type == 0 else True
-        #for i, matrix in enumerate(transform_matrices):
-        #    self.single_tiles[i].add_transformation(matrix)
 
     def add_transformation(self, model):
         """Adds a transformation to all tiles"""
@@ -44,7 +41,6 @@ class MultipleTilesRenderer:
             bbox = single_tile.get_bbox()
             # using the (x_min, y_min, x_max, y_max) notation
             self.rtree.insert(single_tile, (bbox[0], bbox[2], bbox[1], bbox[3]))
- 
         
     def render(self):
         if len(self.single_tiles) == 0:
@@ -57,7 +53,8 @@ class MultipleTilesRenderer:
         return crop, start_point
 
     def crop(self, from_x, from_y, to_x, to_y):
-        print("multiple_tiles_renderer.crop. from_xy: {},{}, to_xy: {},{}".format(from_x, from_y, to_x, to_y))
+        log_controller.debug("multiple_tiles_renderer.crop. from_xy: {},{},"
+                             " to_xy: {},{}".format(from_x, from_y, to_x, to_y))
         if len(self.single_tiles) == 0:
             return None, None
 
@@ -66,7 +63,7 @@ class MultipleTilesRenderer:
             res = np.zeros((round(to_y + 1 - from_y), round(to_x + 1 - from_x)), dtype=self.dtype)
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, _ = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
@@ -85,7 +82,7 @@ class MultipleTilesRenderer:
 
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, t_mask = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
@@ -111,12 +108,13 @@ class MultipleTilesRenderer:
 
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, t_weights = t.crop_with_distances(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    print("actual image start_point:", t_start_point, "and shape:", t_img.shape)
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    log_controller.debug("actual image start_point:{}, shape:{}".format(t_start_point, t_img.shape))
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] += (t_img * t_weights).astype(res.dtype)
                     res_weights[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
@@ -128,7 +126,6 @@ class MultipleTilesRenderer:
             res = np.maximum(0, np.minimum(np.iinfo(self.dtype).max, res)).astype(self.dtype)
 
         elif self.blend_type == BlendType.MULTI_BAND_SEAM: # multi-band with seam blending
-
             images = []
             images_masks = []
             images_corners = []
@@ -146,8 +143,9 @@ class MultipleTilesRenderer:
                 t_img, t_start_point, t_mask = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None and t_img.shape[0] > 0 and t_img.shape[1] > 0:
                     # the relative start_point of t_img in the output image
-                    print("actual image start_point:", t_start_point, "and shape:", t_img.shape)
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    log_controller.debug("actual image start_point:{}, shape:{}".format(t_start_point, t_img.shape))
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     min_rel_xy = np.minimum(min_rel_xy, t_rel_point)
 
                     # Change t_mask from 1 to 255 (keep 0's as 0)
@@ -158,12 +156,9 @@ class MultipleTilesRenderer:
                     images_masks.append(np.ascontiguousarray(t_mask))
                     images_corners.append(np.ascontiguousarray(t_rel_point))
                     rel_points.append(t_rel_point)
-            print("Rendering tiles ({} images) time: {}".format(len(rel_points), time.time() - st_time))
+            log_controller.debug("Rendering tiles ({} images) time: {}".format(len(rel_points), time.time() - st_time))
 
             # TODO - find the optimal seam scale
-            #min_height_width = np.min([img.shape for img in images])
-            #if min_height_width < 50:
-            #    seam_scale = 1.0
             seam_scale = 1.0
 
             # Create the mipmaps for the seams
@@ -174,34 +169,23 @@ class MultipleTilesRenderer:
                 images_seams_corners = rel_points
             else:
                 for t_img, t_mask, t_rel_point in zip(images, images_masks, rel_points):
-
-                        # Create downsampled images for seams calculation
-                        #print("t_img shape: {}".format(t_img.shape))
                         t_img_seams = cv2.resize(t_img, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_LINEAR)
                         t_mask_seams = cv2.resize(t_mask, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_NEAREST)
-                        #t_img_seams = cv2.resize(t_img_rgb, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_AREA)
-                        #t_mask_seams = cv2.resize(t_mask, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_AREA)
                         t_seams_corner = (t_rel_point * seam_scale).astype(int)
-
-    #                     t_img_seams = t_img.copy()
-    #                     t_mask_seams = t_mask.copy()
-    #                     t_seams_corner = (t_rel_point * seam_scale).astype(int)
 
                         images_seams.append(np.ascontiguousarray(t_img_seams))
                         images_seams_masks.append(np.ascontiguousarray(t_mask_seams))
                         images_seams_corners.append(np.ascontiguousarray(t_seams_corner))
 
-            # Compose the blended image into a single image
-            #cv2.imwrite('test1.jpg', images[0])
-            #cv2.imwrite('test1_seams.jpg', images_seams[0])
-            #print("len(images)", len(images))
             create_panorama = True
             if len(images) == 0:
                 create_panorama = False
 
             if create_panorama:
-                non_padded_res = PyImagesComposer.compose_panorama(images, images_masks, images_corners, seam_scale,
-                                                        images_seams, images_seams_masks, images_seams_corners)
+                non_padded_res = images_composer.PyImagesComposer.compose_panorama(images, images_masks,
+                                                                                   images_corners, seam_scale,
+                                                                                   images_seams, images_seams_masks,
+                                                                                   images_seams_corners)
             images = None
             images_masks = None
             images_corners = None
@@ -213,7 +197,7 @@ class MultipleTilesRenderer:
             if create_panorama:
                 res[min_rel_xy[1]:min_rel_xy[1] + non_padded_res.shape[0],
                     min_rel_xy[0]:min_rel_xy[0] + non_padded_res.shape[1]] = non_padded_res
-            print("Blending tiles time: {}".format(time.time() - st_time))
+            log_controller.debug("Blending tiles time: {}".format(time.time() - st_time))
 
         return res, (from_x, from_y)
 

@@ -288,10 +288,10 @@ void EMSAGraphCutSeamFinder::Impl::findInPair(size_t first, size_t second, Rect 
 
     switch (cost_type_)
     {
-    case GraphCutSeamFinder::COST_COLOR:
+    case EMSAGraphCutSeamFinder::COST_COLOR:
         setGraphWeightsColor(subimg1, subimg2, submask1, submask2, graph);
         break;
-    case GraphCutSeamFinder::COST_COLOR_GRAD:
+    case EMSAGraphCutSeamFinder::COST_COLOR_GRAD:
         setGraphWeightsColorGrad(subimg1, subimg2, subdx1, subdx2, subdy1, subdy2,
                                  submask1, submask2, graph);
         break;

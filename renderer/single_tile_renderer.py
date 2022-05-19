@@ -8,9 +8,12 @@ import numpy as np
 import math
 from common.trans_models import AffineModel
 import scipy.interpolate as spint
-import scipy.spatial.qhull as qhull
-from scipy.spatial import ConvexHull
 import time
+from common import utils
+import os
+overall_args = utils.load_json_file('arguments/overall_args.json')
+log_controller = utils.LogController('render', 'single_tile_renderer',
+                                     os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 class SingleTileRendererBase(object):
@@ -19,13 +22,12 @@ class SingleTileRendererBase(object):
                  transformation_models=[],
                  compute_mask=False, 
                  compute_distances=True):
-                 #hist_adjuster=None):
+        self.img = None
         self.width = width
         self.height = height
         self.compute_mask = compute_mask
         self.mask = None
         self.compute_distances = compute_distances
-        #self.hist_adjuster = hist_adjuster
         self.weights = None
         if bbox is None:
             self.bbox = [0, width - 1, 0, height - 1]
@@ -34,7 +36,8 @@ class SingleTileRendererBase(object):
             self.bbox = np.around(bbox).astype(int)
             self.shape = (self.bbox[1] - self.bbox[0] + 1, self.bbox[3] - self.bbox[2] + 1)
 
-        self.start_point = (self.bbox[0], self.bbox[2]) # If only affine is used then this is always (bbox[0], bbox[2]), with non-affine it might be different
+        self.start_point = (self.bbox[0], self.bbox[2])
+        # If only affine is used then this is always (bbox[0], bbox[2]), with non-affine it might be different
 
         # Starting with a single identity affine transformation
         self.pre_non_affine_transform = np.eye(3)[:2]
@@ -83,8 +86,8 @@ class SingleTileRendererBase(object):
 
         st_time = time.time()
         img = self.load()
-        print("loading image time: {}".format(time.time() - st_time))
-        self.start_point = np.array([self.bbox[0], self.bbox[2]]) # may be different for non-affine result
+        log_controller.debug("loading image time: {}".format(time.time() - st_time))
+        self.start_point = np.array([self.bbox[0], self.bbox[2]])  # may be different for non-affine result
 
         if self.non_affine_transform is None:
             # If there wasn't a non-affine transformation, we only need to apply an affine transformation
@@ -108,13 +111,13 @@ class SingleTileRendererBase(object):
                 self.weights = cv2.warpAffine(weights_img, adjusted_transform, self.shape, flags=cv2.INTER_AREA)
 
         else:
-            st_time = time.time()
             # Apply a reverse pre affine transformation on the source points of the non-affine transformation,
             # and a post affine transformation on the destination points
             src_points, dest_points = self.non_affine_transform.get_point_map()
             inverted_pre = np.linalg.inv(np.vstack([self.pre_non_affine_transform, [0., 0., 1.]]))[:2]
             src_points = np.dot(inverted_pre[:2, :2], src_points.T).T + inverted_pre[:, 2].reshape((1, 2))
-            dest_points = np.dot(self.post_non_affine_transform[:2, :2], dest_points.T).T + self.post_non_affine_transform[:, 2].reshape((1, 2))
+            dest_points = np.dot(self.post_non_affine_transform[:2, :2], dest_points.T).T + \
+                          self.post_non_affine_transform[:, 2].reshape((1, 2))
 
             # Move the destination points to start at (0, 0) --> less rendering
             dest_points = dest_points - np.array([self.bbox[0], self.bbox[2]])
@@ -122,32 +125,27 @@ class SingleTileRendererBase(object):
             # Set the target grid using the shape
             out_grid_x, out_grid_y = np.mgrid[0:self.shape[0], 0:self.shape[1]]
 
-            print("  non-affine render pre_grid creation time: {}".format(time.time() - st_time))
-            st_time = time.time()
             # TODO - is there a way to further restrict the target grid size, and speed up the interpolation?
             # Use griddata to interpolate all the destination points
-            out_grid_z = spint.griddata(dest_points, src_points, (out_grid_x, out_grid_y), method='linear', fill_value=-1.)
-            #out_grid_z = spint.griddata(dest_points, src_points, (out_grid_x, out_grid_y), method='cubic', fill_value=-1.)
+            out_grid_z = spint.griddata(dest_points, src_points, (out_grid_x, out_grid_y),
+                                        method='linear', fill_value=-1.)
 
-            print("  non-affine render out_grid_z creation time: {}".format(time.time() - st_time))
-            st_time = time.time()
-            map_x = np.append([], [ar[:,0] for ar in out_grid_z]).reshape(self.shape[0], self.shape[1]).astype('float32')
-            map_y = np.append([], [ar[:,1] for ar in out_grid_z]).reshape(self.shape[0], self.shape[1]).astype('float32')
-            # find all rows and columns that are mapped before or after the boundaries of the source image, and remove them
-            map_valid_cells = np.where((map_x >= 0.) & (map_x < float(self.width)) & (map_y >= 0.) & (map_y < float(self.height)))
+            map_x = np.append([], [ar[:, 0] for ar in out_grid_z]).reshape(self.shape[0],
+                                                                           self.shape[1]).astype('float32')
+            map_y = np.append([], [ar[:, 1] for ar in out_grid_z]).reshape(self.shape[0],
+                                                                           self.shape[1]).astype('float32')
+            # find all rows and columns that are mapped before or after the boundaries of
+            # the source image, and remove them
+            map_valid_cells = np.where((map_x >= 0.) & (map_x < float(self.width)) &
+                                       (map_y >= 0.) & (map_y < float(self.height)))
             min_col_row = np.min(map_valid_cells, axis=1)
             max_col_row = np.max(map_valid_cells, axis=1)
             map_x = map_x[min_col_row[0]:max_col_row[0], min_col_row[1]:max_col_row[1]]
             map_y = map_y[min_col_row[0]:max_col_row[0], min_col_row[1]:max_col_row[1]]
-            print("  non-affine render maps creation time: {}".format(time.time() - st_time))
-            st_time = time.time()
 
             # remap the source points to the destination points
             self.img = cv2.remap(img, map_x, map_y, cv2.INTER_CUBIC).T
             self.start_point = self.start_point + min_col_row
-
-            print("  non-affine render remap time: {}".format(time.time() - st_time))
-            st_time = time.time()
             # Add mask and weights computation
             if self.compute_mask:
                 mask_img = np.ones(img.shape)
@@ -164,15 +162,11 @@ class SingleTileRendererBase(object):
                 self.weights = cv2.remap(weights_img, map_x, map_y, cv2.INTER_CUBIC).T
                 self.weights[self.weights < 0] = 0
 
-            print("  non-affine render mask creation time: {}".format(time.time() - st_time))
-
-
         self.already_rendered = True
         return self.img, self.start_point
 
     def fetch_mask(self):
-        assert(self.compute_mask)
-
+        assert self.compute_mask
         if not self.already_rendered:
             self.render()
 
@@ -181,43 +175,49 @@ class SingleTileRendererBase(object):
     def crop(self, from_x, from_y, to_x, to_y):
         """Returns the cropped image, its starting point, and the cropped mask (if the mask was computed).
            The given coordinates are specified using world coordinates."""
-        print("!!crop called with from_xy: {},{} to_xy: {},{}".format(from_x, from_y, to_x, to_y))
+        log_controller.debug("!!crop called with from_xy: {},{} to_xy: {},{}".format(from_x, from_y, to_x, to_y))
         # find the overlapping area of the given coordinates and the transformed tile
-        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]), max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
+        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]),
+                            max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
             # No overlap between the area and the tile
-            print("overlapping area is empty: width:{}, height:{}".format(overlapping_width, overlapping_height))
+            log_controller.debug("overlapping area is empty: width:{}, height:{}".format(overlapping_width,
+                                                                                         overlapping_height))
             return None, None, None
 
         cropped_mask = None
         # Make sure the image was rendered
         self.render()
-        # Check with the actual image bounding box (may be different because of the non-affine transformation)
-        actual_bbox = [self.start_point[0], self.start_point[0] + self.img.shape[1], self.start_point[1], self.start_point[1] + self.img.shape[0]]
-        overlapping_area = [max(from_x, actual_bbox[0]), min(to_x, actual_bbox[1]), max(from_y, actual_bbox[2]), min(to_y, actual_bbox[3])]
+        # Check with the actual image bounding box (maybe different because of the non-affine transformation)
+        actual_bbox = [self.start_point[0], self.start_point[0] + self.img.shape[1],
+                       self.start_point[1], self.start_point[1] + self.img.shape[0]]
+        overlapping_area = [max(from_x, actual_bbox[0]), min(to_x, actual_bbox[1]),
+                            max(from_y, actual_bbox[2]), min(to_y, actual_bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
             # No overlap between the area and the tile
             return None, None, None
 
-
         cropped_img = self.img[int(overlapping_area[2] - actual_bbox[2]):int(overlapping_area[3] - actual_bbox[2] + 1),
                                int(overlapping_area[0] - actual_bbox[0]):int(overlapping_area[1] - actual_bbox[0] + 1)]
         if self.compute_mask:
-            cropped_mask = self.mask[int(overlapping_area[2] - actual_bbox[2]):int(overlapping_area[3] - actual_bbox[2] + 1),
-                                     int(overlapping_area[0] - actual_bbox[0]):int(overlapping_area[1] - actual_bbox[0] + 1)]
+            cropped_mask = self.mask[int(overlapping_area[2] - actual_bbox[2]):
+                                     int(overlapping_area[3] - actual_bbox[2] + 1),
+                                     int(overlapping_area[0] - actual_bbox[0]):
+                                     int(overlapping_area[1] - actual_bbox[0] + 1)]
         # Take only the parts that are overlapping
         return cropped_img, (overlapping_area[0], overlapping_area[2]), cropped_mask
 
     def crop_with_distances(self, from_x, from_y, to_x, to_y):
-        """Returns the cropped image, its starting point, and the cropped image L1 distances of each pixel inside the image from the edge
-           of the rendered image (if the mask was computed).
-           The given coordinates are specified using world coordinates."""
+        """Returns the cropped image, its starting point, and the cropped image L1 distances of each pixel inside the
+        image from the edge of the rendered image (if the mask was computed).
+        The given coordinates are specified using world coordinates."""
         # find the overlapping area of the given coordinates and the transformed tile
-        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]), max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
+        overlapping_area = [max(from_x, self.bbox[0]), min(to_x, self.bbox[1]),
+                            max(from_y, self.bbox[2]), min(to_y, self.bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
@@ -227,9 +227,11 @@ class SingleTileRendererBase(object):
         cropped_distances = None
         # Make sure the image was rendered
         self.render()
-        # Check with the actual image bounding box (may be different because of the non-affine transformation)
-        actual_bbox = [self.start_point[0], self.start_point[0] + self.img.shape[1], self.start_point[1], self.start_point[1] + self.img.shape[0]]
-        overlapping_area = [max(from_x, actual_bbox[0]), min(to_x, actual_bbox[1]), max(from_y, actual_bbox[2]), min(to_y, actual_bbox[3])]
+        # Check with the actual image bounding box (maybe different because of the non-affine transformation)
+        actual_bbox = [self.start_point[0], self.start_point[0] + self.img.shape[1],
+                       self.start_point[1], self.start_point[1] + self.img.shape[0]]
+        overlapping_area = [max(from_x, actual_bbox[0]), min(to_x, actual_bbox[1]),
+                            max(from_y, actual_bbox[2]), min(to_y, actual_bbox[3])]
         overlapping_width = overlapping_area[1] - overlapping_area[0] + 1
         overlapping_height = overlapping_area[3] - overlapping_area[2] + 1
         if overlapping_width <= 0 or overlapping_height <= 0:
@@ -239,14 +241,16 @@ class SingleTileRendererBase(object):
         cropped_img = self.img[int(overlapping_area[2] - actual_bbox[2]):int(overlapping_area[3] - actual_bbox[2] + 1),
                                int(overlapping_area[0] - actual_bbox[0]):int(overlapping_area[1] - actual_bbox[0] + 1)]
         if self.compute_distances:
-            cropped_distances = self.weights[int(overlapping_area[2] - actual_bbox[2]):int(overlapping_area[3] - actual_bbox[2] + 1),
-                                             int(overlapping_area[0] - actual_bbox[0]):int(overlapping_area[1] - actual_bbox[0] + 1)]
+            cropped_distances = self.weights[int(overlapping_area[2] - actual_bbox[2]):
+                                             int(overlapping_area[3] - actual_bbox[2] + 1),
+                                             int(overlapping_area[0] - actual_bbox[0]):
+                                             int(overlapping_area[1] - actual_bbox[0] + 1)]
            
         # Take only the parts that are overlapping
         return cropped_img, (overlapping_area[0], overlapping_area[2]), cropped_distances
 
-class SingleTileDynamicRendererBase(SingleTileRendererBase):
 
+class SingleTileDynamicRendererBase(SingleTileRendererBase):
     def __init__(self, width, height, 
                  bbox=None,
                  transformation_models=[],
@@ -272,7 +276,7 @@ class SingleTileDynamicRendererBase(SingleTileRendererBase):
         self.bbox, self.shape = compute_bbox_and_shape(self.surrounding_polygon)
 
     def _update_surrounding_polygon(self, model):
-        # Update the surroundin_polygon according to the new model
+        # Update the surrounding_polygon according to the new model
         if model.is_affine():
             self.surrounding_polygon = model.apply(self.surrounding_polygon)
         else:
@@ -284,15 +288,15 @@ class SingleTileDynamicRendererBase(SingleTileRendererBase):
             boundary3 = np.array([[0., float(p)] for p in np.arange(self.height)])
             boundary4 = np.array([[float(self.width - 1), float(p)] for p in np.arange(self.height)])
             boundaries = np.concatenate((boundary1, boundary2, boundary3, boundary4))
-            boundaries = np.dot(self.pre_non_affine_transform[:2, :2], boundaries.T).T + self.pre_non_affine_transform[:, 2].reshape((1, 2))
+            boundaries = np.dot(self.pre_non_affine_transform[:2, :2], boundaries.T).T + \
+                         self.pre_non_affine_transform[:, 2].reshape((1, 2))
             self.surrounding_polygon = model.apply(boundaries)
 
 
-
-
 class SingleTileStaticRenderer(SingleTileRendererBase):
-    '''Implementation of SingleTileRendererBase with file path for static (no further transformations) images'''
-    
+    """
+    Implementation of SingleTileRendererBase with file path for static (no further transformations) images
+    """
     def __init__(self, img_path, width, height, 
                  bbox=None,
                  transformation_models=[],
@@ -308,16 +312,14 @@ class SingleTileStaticRenderer(SingleTileRendererBase):
         img = cv2.imread(self.img_path, cv2.IMREAD_ANYDEPTH)
         # Normalize the histogram if needed
         if self.hist_adjuster is not None:
-            #img = cv2.equalizeHist(img)
-            #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            #img = clahe.apply(img)
             img = self.hist_adjuster.adjust_histogram(self.img_path, img)
-
         return img
 
+
 class SingleTileRenderer(SingleTileDynamicRendererBase):
-    '''Implementation of SingleTileRendererBase with file path for dynamic (new transformations can be applied) images'''
-    
+    """
+    Implementation of SingleTileRendererBase with file path for dynamic (new transformations can be applied) images
+    """
     def __init__(self, img_path, width, height, 
                  bbox=None,
                  transformation_models=[],
@@ -333,23 +335,20 @@ class SingleTileRenderer(SingleTileDynamicRendererBase):
         img = cv2.imread(self.img_path, cv2.IMREAD_ANYDEPTH)
         # Normalize the histogram if needed
         if self.hist_adjuster is not None:
-            #img = cv2.equalizeHist(img)
-            #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            #img = clahe.apply(img)
             img = self.hist_adjuster.adjust_histogram(self.img_path, img)
 
         return img
 
 
-
 class AlphaTileRenderer(SingleTileDynamicRendererBase):
-    '''An alpha channel for a pre-existing single tile'''
-    
+    """
+    An alpha channel for a pre-existing single tile
+    """
     def __init__(self, other_renderer):
-        '''Initialize with another renderer
-        
+        """
+        Initialize with another renderer
         :param other_renderer: A renderer derived from SingleTileRendererBase
-        '''
+        """
         super(AlphaTileRenderer, self).__init__(
             other_renderer.width, other_renderer.height, None, [], False, False)
         pre, post = [
@@ -357,8 +356,8 @@ class AlphaTileRenderer(SingleTileDynamicRendererBase):
                         if transform.shape[0] == 2
                         else transform) 
             for transform in 
-            [other_renderer.pre_non_affine_transform, 
-            other_renderer.post_non_affine_transform]]
+            [other_renderer.pre_non_affine_transform,
+             other_renderer.post_non_affine_transform]]
         self.add_transformation(pre)             
         if other_renderer.non_affine_transform is not None:
             self.add_transformation(other_renderer.non_affine_transform)
@@ -368,20 +367,13 @@ class AlphaTileRenderer(SingleTileDynamicRendererBase):
         return np.ones((self.height, self.width), np.float32)
 
 
-
-
 # Helper methods (shouldn't be used from the outside)
-
-
 def compute_bbox_and_shape(polygon):
     # find the new bounding box
     min_XY = np.min(polygon, axis=0)
     max_XY = np.max(polygon, axis=0)
     # Rounding to avoid float precision errors due to representation
-    new_bbox = [int(math.floor(round(min_XY[0], 5))), int(math.ceil(round(max_XY[0], 5))), int(math.floor(round(min_XY[1], 5))), int(math.ceil(round(max_XY[1], 5)))]
-    #new_bbox = [int(min_XY[0] + math.copysign(0.5, min_XY[0])), int(max_XY[0] + math.copysign(0.5, max_XY[1])), int(min_XY[1] + math.copysign(0.5, min_XY[1])), int(max_XY[1] + math.copysign(0.5, max_XY[1]))]
+    new_bbox = [int(math.floor(round(min_XY[0], 5))), int(math.ceil(round(max_XY[0], 5))),
+                int(math.floor(round(min_XY[1], 5))), int(math.ceil(round(max_XY[1], 5)))]
     new_shape = (new_bbox[1] - new_bbox[0] + 1, new_bbox[3] - new_bbox[2] + 1)
     return new_bbox, new_shape
-
-
-

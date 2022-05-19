@@ -1,4 +1,3 @@
-from .single_tile_affine_renderer import SingleTileAffineRenderer
 import numpy as np
 import tinyr
 from enum import Enum
@@ -13,9 +12,9 @@ class BlendType(Enum):
 
 class MultipleTilesAffineRenderer:
     BLEND_TYPE = {
-            "NO_BLENDING" : 0,
-            "AVERAGING" : 1,
-            "LINEAR" : 2
+            "NO_BLENDING": 0,
+            "AVERAGING": 1,
+            "LINEAR": 2
         }
 
     def __init__(self, single_tiles, blend_type=BlendType.NO_BLENDING):
@@ -28,10 +27,6 @@ class MultipleTilesAffineRenderer:
             bbox = t.get_bbox()
             # using the (x_min, y_min, x_max, y_max) notation
             self.rtree.insert(t, (bbox[0], bbox[2], bbox[1], bbox[3]))
-        #should_compute_mask = False if self.blend_type == 0 else True
-        #self.single_tiles = [SingleTileAffineRenderer(img_path, img_shape[1], img_shape[0], compute_mask=should_compute_mask) for img_path, img_shape in zip(img_paths, img_shapes)]
-        #for i, matrix in enumerate(transform_matrices):
-        #    self.single_tiles[i].add_transformation(matrix)
 
     def add_transformation(self, transform_matrix):
         """Adds a transformation to all tiles"""
@@ -57,30 +52,32 @@ class MultipleTilesAffineRenderer:
             return None, None
 
         # Distinguish between the different types of blending
-        if self.blend_type == BlendType.NO_BLENDING: # No blending
+        if self.blend_type == BlendType.NO_BLENDING:  # No blending
             res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint8)
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, _ = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] = t_img
 
-        elif self.blend_type == BlendType.AVERAGING: # Averaging
-            # Do the calculation on a uint16 image (for overlapping areas), and convert to uint8 at the end
+        elif self.blend_type == BlendType.AVERAGING:  # Averaging
+            # Do the calculation on an uint16 image (for overlapping areas), and convert to uint8 at the end
             res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint16)
             res_mask = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint8)
 
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, t_mask = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] += t_img
                     res_mask[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
@@ -91,8 +88,8 @@ class MultipleTilesAffineRenderer:
             res = res / res_mask
             res = res.astype(np.uint8)
 
-        elif self.blend_type == BlendType.LINEAR: # Linear averaging
-            # Do the calculation on a uint32 image (for overlapping areas), and convert to uint8 at the end
+        elif self.blend_type == BlendType.LINEAR:  # Linear averaging
+            # Do the calculation on an uint32 image (for overlapping areas), and convert to uint8 at the end
             # For each pixel use the min-distance to an edge as a weight, and store the
             # average the outcome according to the weight
             res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint32)
@@ -100,11 +97,12 @@ class MultipleTilesAffineRenderer:
 
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, t_weights = t.crop_with_distances(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] += (t_img * t_weights).astype(np.uint32)
                     res_weights[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
@@ -116,4 +114,3 @@ class MultipleTilesAffineRenderer:
             res = res.astype(np.uint8)
 
         return res, (from_x, from_y)
-
