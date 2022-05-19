@@ -121,6 +121,7 @@ algorithm details and here we just explain the overall_args.
 |             blend_type             |                                       [0, 1, 2, 3] Referring to no_blending/averaging/linear/multi_band_seam, respectively.                                        |
 
 ## Contact
-Author: [Hongyu Ge](horacekem@163.com)  
+E-mail: horacekem@163.com  
+Author: Hongyu Ge  
 Biomed ssSEM Lab, SIBET  
 Keling Road 88, Suzhou, Jiangsu
