@@ -120,3 +120,7 @@ algorithm details and here we just explain the overall_args.
 |            invert_image            |                                                   [0, 1] If you want to invert the raw EM images when rendering.                                                   |
 |             blend_type             |                                       [0, 1, 2, 3] Referring to no_blending/averaging/linear/multi_band_seam, respectively.                                        |
 
+## Contact
+Author: [Hongyu Ge](horacekem@163.com)  
+Biomed ssSEM Lab, SIBET  
+Keling Road 88, Suzhou, Jiangsu
