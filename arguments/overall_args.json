@@ -1,10 +1,10 @@
 {
 	"base":
 	{
-		"running_mode": "release",
+		"running_mode": "debug",
 		"EM_type": "singlebeam",
-        "workspace":"/media/sem-lab/Hub5/EMSA-Tool-testdata/singlebeam_workspace",
-		"sample_folder":"/media/sem-lab/Hub5/EMSA-Tool-testdata/singlebeam",
+        "workspace":"singlebeam_test_workspace",
+		"sample_folder":"data/singlebeam_test_dataset",
 		"sample_name": "None",
 		"skipped_layers": "None"
 	},

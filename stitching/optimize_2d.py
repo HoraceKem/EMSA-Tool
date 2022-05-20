@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import progressbar
 import numpy as np
 import scipy.sparse as spp
 from common import utils
