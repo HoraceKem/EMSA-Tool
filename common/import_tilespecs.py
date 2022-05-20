@@ -5,7 +5,7 @@ import decimal
 from common import utils
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('common', 'tilespecs',os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('common', 'import_tilespecs',os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def img_base_name_decimal_key(tile_info: dict) -> decimal.Decimal:

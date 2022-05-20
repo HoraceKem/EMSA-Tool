@@ -2,15 +2,15 @@
 	"base":
 	{
 		"running_mode": "release",
-		"EM_type": "multibeam",
-        "workspace":"/media/sem-lab/Hub5/default_workspace",
-		"sample_folder":"/media/sem-lab/Hub5/multibeam_test_dataset",
+		"EM_type": "singlebeam",
+        "workspace":"/media/sem-lab/Hub5/EMSA-Tool-testdata/singlebeam_workspace",
+		"sample_folder":"/media/sem-lab/Hub5/EMSA-Tool-testdata/singlebeam",
 		"sample_name": "None",
 		"skipped_layers": "None"
 	},
 	"multiprocess":
 	{
-		"extract_features": 8,
+		"extract_features": 3,
 		"match_features": 8,
 		"pmcc_match": 8,
 		"render": 8

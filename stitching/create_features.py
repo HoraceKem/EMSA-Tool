@@ -6,7 +6,8 @@ import common.utils as utils
 import common.keypoint_features_extraction as keypoint_features
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('stitching', 'create', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('stitching', 'create_features',
+                                     os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def compute_and_save_tile_features(tilespec: dict, output_h5_folder_path: str, features_type: str, features_args: dict):
@@ -106,10 +107,11 @@ def compute_and_save_tile_features_split_block(tilespec: dict, output_h5_folder_
         des = []
         log_controller.warning('No feature point detected for {}.'.format(img_file_path))
     log_controller.debug("Saving {} {} features at: {}".format(len(pts), features_type, output_h5_file_path))
-    with h5py.File(output_h5_file_path, 'w') as hf:
-        hf.create_dataset("imageUrl", data=np.array(img_file_path.encode("utf-8"), dtype='S'))
-        hf.create_dataset("pts/responses", data=np.array([p.response for p in pts], dtype=np.float32))
-        hf.create_dataset("pts/locations", data=np.array([p.pt for p in pts], dtype=np.float32))
-        hf.create_dataset("pts/sizes", data=np.array([p.size for p in pts], dtype=np.float32))
-        hf.create_dataset("pts/octaves", data=np.array([p.octave for p in pts], dtype=np.float32))
-        hf.create_dataset("descs", data=np.array(des, dtype=np.float32))
+    with h5py.File(output_h5_file_path, 'w') as f:
+        f.create_dataset("imageUrl", data=np.array(img_file_path.encode("utf-8"), dtype='S'))
+        f.create_dataset("pts/responses", data=np.array([p.response for p in pts], dtype=np.float32))
+        f.create_dataset("pts/locations", data=np.array([p.pt for p in pts], dtype=np.float32))
+        f.create_dataset("pts/sizes", data=np.array([p.size for p in pts], dtype=np.float32))
+        f.create_dataset("pts/octaves", data=np.array([p.octave for p in pts], dtype=np.float32))
+        f.create_dataset("descs", data=np.array(des, dtype=np.float32))
+        f.close()

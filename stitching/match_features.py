@@ -10,7 +10,7 @@ import common.keypoint_features_matching as matching
 
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('stitching', 'match', os.path.join(overall_args["base"]["workspace"], 'log'))
+log_controller = utils.LogController('stitching', 'match_features', os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
 def load_features(h5_file_path: str) -> [np.array, np.array]:

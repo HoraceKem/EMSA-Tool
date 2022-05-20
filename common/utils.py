@@ -21,7 +21,8 @@ class LogController(object):
         # Set the logger
         self.logger = logging.getLogger(file_name)
         self.logger.setLevel(logging.DEBUG)
-        log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
+        log_formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(process)d] [%(name)s] '
+                                          ' %(message)s', '%Y-%m-%d %H:%M:%S')
 
         # Set the StreamHandler to print logs in the console
         log_handler_console = logging.StreamHandler()

@@ -17,7 +17,7 @@ from common import utils
 import math
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
-log_controller = utils.LogController('render', 'driver',
+log_controller = utils.LogController('render', 'render_driver',
                                      os.path.join(overall_args["base"]["workspace"], 'log'))
 
 
