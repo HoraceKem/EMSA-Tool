@@ -14,7 +14,12 @@ log_controller = utils.LogController('alignment', 'optimize_3d', os.path.join(ov
 SAMPLED_POINTS_NUM = 50
 
 
-def read_layer_from_file(tilespecs_file_path):
+def read_layer_from_file(tilespecs_file_path: str) -> int:
+    """
+    Read the layer index from a tilespecs file and check the validation
+    :param tilespecs_file_path:
+    :return:
+    """
     layer = None
     with open(tilespecs_file_path, 'r') as data_file:
         data = json.load(data_file)
@@ -35,12 +40,18 @@ def read_layer_from_file(tilespecs_file_path):
     return int(layer)
 
 
-def compute_points_model_halo(url_optimized_mesh0, points_tree):
+def compute_points_model_halo(url_optimized_mesh, points_tree):
+    """
+    Compute the points halo model
+    :param url_optimized_mesh:
+    :param points_tree:
+    :return:
+    """
     log_controller.debug("Computing Points Transform Model Halo")
 
     # Sample SAMPLED_POINTS_NUM points to find the closest neighbors to these points
-    sampled_points_indices = np.random.choice(url_optimized_mesh0.shape[0], SAMPLED_POINTS_NUM, replace=False)
-    sampled_points = url_optimized_mesh0[np.array(sampled_points_indices)]
+    sampled_points_indices = np.random.choice(url_optimized_mesh.shape[0], SAMPLED_POINTS_NUM, replace=False)
+    sampled_points = url_optimized_mesh[np.array(sampled_points_indices)]
 
     # Find the minimal distance between the sampled points to any other point, by finding the closest point to each
     # point and take the minimum among the distances
@@ -53,6 +64,14 @@ def compute_points_model_halo(url_optimized_mesh0, points_tree):
 
 
 def get_points_transform_model(url_optimized_mesh, bbox, pts_tree, halo):
+    """
+    Get the points transform model
+    :param url_optimized_mesh:
+    :param bbox:
+    :param pts_tree:
+    :param halo:
+    :return:
+    """
     # Find the tile bbox with a halo around it
     bbox_with_halo = list(bbox)
     bbox_with_halo[0] -= halo
@@ -87,19 +106,22 @@ def get_points_transform_model(url_optimized_mesh, bbox, pts_tree, halo):
     return model
 
 
-def compute_new_bounding_box(tile_ts):
-    """Computes a bounding box given the tile's transformations (if any),
-       and the new model to be applied last"""
-    # We must have a non-affine transformation, so compute the transformation of all the boundary pixels
-    # using a forward transformation from the boundaries of the source image to the destination
-    # Assumption: There won't be a pixel inside an image that goes out of the boundary
-    boundary1 = np.array([[float(p), 0.] for p in np.arange(tile_ts["width"])])
-    boundary2 = np.array([[float(p), float(tile_ts["height"] - 1)] for p in np.arange(tile_ts["width"])])
-    boundary3 = np.array([[0., float(p)] for p in np.arange(tile_ts["height"])])
-    boundary4 = np.array([[float(tile_ts["width"] - 1), float(p)] for p in np.arange(tile_ts["height"])])
+def compute_new_bounding_box(tilespec: dict) -> list:
+    """
+    Computes a bounding box given the tile's transformations (if any), and the new model to be applied last.
+    We must have a non-affine transformation, so compute the transformation of all the boundary pixels
+    using a forward transformation from the boundaries of the source image to the destination
+    Assumption: There won't be a pixel inside an image that goes out of the boundary
+    :param tilespec:
+    :return:
+    """
+    boundary1 = np.array([[float(p), 0.] for p in np.arange(tilespec["width"])])
+    boundary2 = np.array([[float(p), float(tilespec["height"] - 1)] for p in np.arange(tilespec["width"])])
+    boundary3 = np.array([[0., float(p)] for p in np.arange(tilespec["height"])])
+    boundary4 = np.array([[float(tilespec["width"] - 1), float(p)] for p in np.arange(tilespec["height"])])
     boundaries = np.concatenate((boundary1, boundary2, boundary3, boundary4))
 
-    for modelspec in tile_ts.get("transforms", []):
+    for modelspec in tilespec.get("transforms", []):
         model = models.Transforms.from_tilespec(modelspec)
         boundaries = model.apply(boundaries)
 
@@ -112,7 +134,14 @@ def compute_new_bounding_box(tile_ts):
     return new_bbox
 
 
-def save_optimized_mesh(tilespecs_file_path, url_optimized_mesh, output_folder_path):
+def save_optimized_mesh(tilespecs_file_path: str, url_optimized_mesh: list, output_folder_path: str):
+    """
+    Save optimized mesh to json files
+    :param tilespecs_file_path:
+    :param url_optimized_mesh:
+    :param output_folder_path:
+    :return:
+    """
     log_controller.debug("Working on:{}".format(tilespecs_file_path))
 
     # Use the first tile to find the halo for the entire section
@@ -151,29 +180,35 @@ def save_optimized_mesh(tilespecs_file_path, url_optimized_mesh, output_folder_p
         log_controller.debug('Nothing to write for tilespec {}'.format(tilespecs_file_path))
 
 
-def read_ts_layers(tile_files):
+def read_ts_layers(ts_file_list: str):
+    """
+    Read tilespecs layers
+    :param ts_file_list:
+    :return:
+    """
     tilespecs_file_to_layer_id = {}
     log_controller.debug("Reading tilespec files...")
-    # TODO - make sure its not a json files list
-    with open(tile_files[0], 'r') as f:
+    with open(ts_file_list, 'r') as f:
         actual_tile_urls = [line.strip('\n') for line in f.readlines()]
-
-    for url in actual_tile_urls:
-        file_name = url.replace('file://', '')
-        layer_id = read_layer_from_file(file_name)
-        tilespecs_file_basename = os.path.basename(url)
+    for file_path in actual_tile_urls:
+        layer_id = read_layer_from_file(file_path)
+        tilespecs_file_basename = os.path.basename(file_path)
         tilespecs_file_to_layer_id[tilespecs_file_basename] = layer_id
 
     return tilespecs_file_to_layer_id, actual_tile_urls
 
 
-def optimize_layers_elastic(tile_files, corr_files, out_dir, align_args):
-    tilespecs_file_to_layer_id, all_tile_urls = read_ts_layers(tile_files)
-
-    # TODO: the tile_files order should imply the order of sections
-
-    # TODO - make sure its not a json files list
-    with open(corr_files[0], 'r') as f:
+def optimize_layers_elastic(ts_list_file: str, corr_list_file: str, output_folder_path: str, align_args: dict):
+    """
+    3D optimize and output new tilespecs json files
+    :param ts_list_file:
+    :param corr_list_file:
+    :param output_folder_path:
+    :param align_args:
+    :return:
+    """
+    tilespecs_file_to_layer_id, all_tile_urls = read_ts_layers(ts_list_file)
+    with open(corr_list_file, 'r') as f:
         actual_corr_files = [line.replace('file://', '').strip('\n') for line in f.readlines()]
 
     hex_spacing = align_args["block_match"]["hex_spacing"]
@@ -182,8 +217,8 @@ def optimize_layers_elastic(tile_files, corr_files, out_dir, align_args):
     optimized_meshes = optimize_meshes(actual_corr_files, hex_spacing, align_args)
 
     # Save the output
-    utils.create_dir(out_dir)
+    utils.create_dir(output_folder_path)
     for ts_url in all_tile_urls:
         tilespecs_file_path = ts_url.replace('file://', '')
-        save_optimized_mesh(tilespecs_file_path, optimized_meshes[tilespecs_file_path], out_dir)
+        save_optimized_mesh(tilespecs_file_path, optimized_meshes[tilespecs_file_path], output_folder_path)
     log_controller.debug("Optimization done.")

@@ -12,16 +12,12 @@ import gc
 from common.bounding_box import BoundingBox
 from common import utils
 import datetime
-
 from alignment import mesh_derivs_multibeam
 
 overall_args = utils.load_json_file('arguments/overall_args.json')
 log_controller = utils.LogController('alignment', 'optimize_mesh',
                                      os.path.join(overall_args["base"]["workspace"], 'log'))
 
-FLOAT_TYPE = np.float64
-
-SHOW_FINAL_MO = True
 
 sys.setrecursionlimit(10000)  # for grad
 
@@ -29,8 +25,8 @@ sys.setrecursionlimit(10000)  # for grad
 class Mesh(object):
     def __init__(self, points):
         # load the mesh
-        self.orig_pts = np.array(points, dtype=FLOAT_TYPE).reshape((-1, 2)).copy()
-        self.pts = np.array(points, dtype=FLOAT_TYPE).reshape((-1, 2)).copy()
+        self.orig_pts = np.array(points, dtype=np.float64).reshape((-1, 2)).copy()
+        self.pts = np.array(points, dtype=np.float64).reshape((-1, 2)).copy()
         center = self.pts.mean(axis=0)
         self.pts -= center
         self.pts *= 1.1
@@ -196,12 +192,11 @@ def align_rigid(pts1, pts2):
 
 
 def Haffine_from_points(fp, tp):
-    """Find H, affine transformation, s.t. tp is affine transformation of fp.
-       Taken from 'Programming Computer Vision with Python: Tools and algorithms for analyzing images'
     """
-
+    Find H, affine transformation, s.t. tp is affine transformation of fp.
+    Taken from 'Programming Computer Vision with Python: Tools and algorithms for analyzing images'
+    """
     assert(fp.shape == tp.shape)
-
     fp = fp.T
     tp = tp.T
 
@@ -355,15 +350,11 @@ def optimize_meshes_links(meshes, links, layers, align_args):
             old_pts = {ts: m.pts.copy() for ts, m in meshes.items()}
             for ts in meshes:
                 meshes[ts].pts -= stepsize * gradients_with_momentum[ts]
-            # if i % 500 == 0:
-            #     log_controller.debug()("{} Good step: cost {}  stepsize {}".format(i, cost, stepsize))
         else:  # we took a bad step: undo it, scale down stepsize, and start over
             for ts in meshes:
                 meshes[ts].pts = old_pts[ts]
             stepsize *= 0.5
             gradients_with_momentum = {ts: 0 for ts in meshes}
-            # if i % 500 == 0:
-            #     log_controller.debug()("{} Bad step: stepsize {}".format(i, stepsize))
         if i % 100 == 0:
             log_controller.debug("i {}: C: {}, MO: {}, S: {}".format(i, cost,
                                                                      mean_offsets(meshes, links, sorted_slices[-1],
@@ -387,11 +378,10 @@ def optimize_meshes_links(meshes, links, layers, align_args):
             break
     log_controller.debug("last MO: {}\n".format(mean_offsets(meshes, links, sorted_slices[-1], plot=False)))
 
-    if SHOW_FINAL_MO:
-        log_controller.debug("Final MO:")
-        for active_ts in sorted_slices:
-            log_controller.debug(" Section {}: {}".format(layers[active_ts], ts_mean_offsets(meshes, links,
-                                                                                             active_ts, plot=False)))
+    log_controller.debug("Final MO:")
+    for active_ts in sorted_slices:
+        log_controller.debug(" Section {}: {}".format(layers[active_ts], ts_mean_offsets(meshes, links,
+                                                                                         active_ts, plot=False)))
 
     # Prepare per-layer output
     out_positions = {}
@@ -419,13 +409,6 @@ def optimize_meshes(match_files_list, hex_spacing, align_args):
         with open(match_file, 'r') as f:
             data = json.load(f)
         if not data["tilespec1"] in meshes:
-            # if "mfov1" in data:
-            #     if not data["tilespec1"] in meshes_per_mfov:
-            #         meshes_per_mfov[data["tilespec1"]] = {}
-            #     if not data["mfov1"] in meshes_per_mfov[data["tilespec1"]]:
-            #         meshes_per_mfov[data["tilespec1"]][data["mfov1"]] = data["mesh"]
-            # else:
-            #     meshes[data["tilespec1"]] = Mesh(data["mesh"])
             tilespecs_file_path = data["tilespec1"].replace("file://", "")
             log_controller.debug("Generating Hexagonal Grid")
             bb = BoundingBox.read_bbox(tilespecs_file_path)

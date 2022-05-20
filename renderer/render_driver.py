@@ -10,7 +10,6 @@ from renderer.multiple_tiles_renderer import BlendType
 from common.bounding_box import BoundingBox
 import cv2
 import numpy as np
-import time
 import json
 import os
 from common import utils

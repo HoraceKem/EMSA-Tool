@@ -95,7 +95,7 @@ def get_best_transformations(pre_mfov_matches: dict, tilespecs_file_path1: str, 
     return transforms
 
 
-def find_best_mfov_transformation(mfov, best_transformations, mfov_centers):
+def find_best_mfov_transformation(mfov: str, best_transformations: dict, mfov_centers: dict):
     """
     Returns a matrix that represents the best transformation for a given mfov to the other section
     :param mfov:
@@ -115,7 +115,12 @@ def find_best_mfov_transformation(mfov, best_transformations, mfov_centers):
     return best_transformations[trans_keys[closest_mfov_idx]]
 
 
-def get_tile_centers_from_json(tilespecs):
+def get_tile_centers_from_json(tilespecs: list) -> list:
+    """
+    Get a list of the centers' coordinates of tiles
+    :param tilespecs:
+    :return:
+    """
     tiles_centers = []
     for tilespec in tilespecs:
         center_x = (tilespec["bbox"][0] + tilespec["bbox"][1]) / 2.0
@@ -141,9 +146,17 @@ def is_point_in_img(tile_ts, point):
 
 def execute_pmcc_matching(img1_center_point, img1_to_img2_transform, img1_scaled_renderer,
                           img2_scaled_renderer, align_args):
-    # Assumes that img1_renderer already has the transformation to img2 applied, and is scaled down,
-    # and that img2_renderer is already scaled down,
-    # and img1_center_point is w/o the transformation to img2 and w/o the scaling
+    """
+    Assumes that img1_renderer already has the transformation to img2 applied, and is scaled down,
+    and that img2_renderer is already scaled down, and img1_center_point is w/o the transformation
+    to img2 and w/o the scaling
+    :param img1_center_point:
+    :param img1_to_img2_transform:
+    :param img1_scaled_renderer:
+    :param img2_scaled_renderer:
+    :param align_args:
+    :return:
+    """
     # Compute the estimated point on img2 with scaling
     img1_center_point_on_img2 = (np.dot(img1_to_img2_transform[:2, :2], img1_center_point) +
                                  img1_to_img2_transform[:2, 2]) * align_args["block_match"]["scaling"]
@@ -177,8 +190,18 @@ def execute_pmcc_matching(img1_center_point, img1_to_img2_transform, img1_scaled
     return None
 
 
-def match_layers_pmcc_matching(tilespecs_file_path1, tilespecs_file_path2, pre_matches_file_path, output_file_path,
-                               targeted_mfov, align_args):
+def match_layers_pmcc_matching(tilespecs_file_path1: str, tilespecs_file_path2: str, pre_matches_file_path: str,
+                               output_file_path: str, targeted_mfov: str, align_args: dict):
+    """
+    PMCC matching between two target layers
+    :param tilespecs_file_path1:
+    :param tilespecs_file_path2:
+    :param pre_matches_file_path:
+    :param output_file_path:
+    :param targeted_mfov:
+    :param align_args:
+    :return:
+    """
     log_controller.debug("Block-Matching+PMCC layers: {} with {} targeted mfov: {}".format(tilespecs_file_path1,
                                                                                            tilespecs_file_path2,
                                                                                            targeted_mfov))

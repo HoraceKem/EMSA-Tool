@@ -1,5 +1,3 @@
-from __future__ import print_function
-from .single_tile_renderer import AlphaTileRenderer
 import numpy as np
 import tinyr
 import cv2
@@ -57,9 +55,9 @@ class MultipleTilesRenderer:
                              " to_xy: {},{}".format(from_x, from_y, to_x, to_y))
         if len(self.single_tiles) == 0:
             return None, None
-
+        res = None
         # Distinguish between the different types of blending
-        if self.blend_type == BlendType.NO_BLENDING: # No blending
+        if self.blend_type == BlendType.NO_BLENDING:  # No blending
             res = np.zeros((round(to_y + 1 - from_y), round(to_x + 1 - from_x)), dtype=self.dtype)
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
@@ -67,12 +65,13 @@ class MultipleTilesRenderer:
             for t in rect_res:
                 t_img, t_start_point, _ = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] = t_img
 
-        elif self.blend_type == BlendType.AVERAGING: # Averaging
-            # Do the calculation on a uint16 image (for overlapping areas), and convert to uint8 at the end
+        elif self.blend_type == BlendType.AVERAGING:  # Averaging
+            # Do the calculation on an uint16 image (for overlapping areas), and convert to uint8 at the end
             res = np.zeros(
                 (int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), 
                 np.int32)
@@ -86,9 +85,8 @@ class MultipleTilesRenderer:
             for t in rect_res:
                 t_img, t_start_point, t_mask = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None:
-                    #t_mask, _, _ = AlphaTileRenderer(t).crop(
-                    #    from_x, from_y, to_x, to_y)
-                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)), int(round(t_start_point[1] - from_y))], dtype=int)
+                    t_rel_point = np.array([int(round(t_start_point[0] - from_x)),
+                                            int(round(t_start_point[1] - from_y))], dtype=int)
                     res[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
                         t_rel_point[0]:t_rel_point[0] + t_img.shape[1]] += t_img
                     res_mask[t_rel_point[1]:t_rel_point[1] + t_img.shape[0],
@@ -99,8 +97,8 @@ class MultipleTilesRenderer:
             res = res / res_mask
             res = np.maximum(0, np.minimum(np.iinfo(self.dtype).max, res)).astype(self.dtype)
 
-        elif self.blend_type == BlendType.LINEAR: # Linear averaging
-            # Do the calculation on a uint32 image (for overlapping areas), and convert to uint8 at the end
+        elif self.blend_type == BlendType.LINEAR:  # Linear averaging
+            # Do the calculation on an uint32 image (for overlapping areas), and convert to uint8 at the end
             # For each pixel use the min-distance to an edge as a weight, and store the
             # average the outcome according to the weight
             res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint32)
@@ -125,12 +123,11 @@ class MultipleTilesRenderer:
             res = res / res_weights
             res = np.maximum(0, np.minimum(np.iinfo(self.dtype).max, res)).astype(self.dtype)
 
-        elif self.blend_type == BlendType.MULTI_BAND_SEAM: # multi-band with seam blending
+        elif self.blend_type == BlendType.MULTI_BAND_SEAM:  # multi-band with seam blending
             images = []
             images_masks = []
             images_corners = []
             rel_points = []
-            seam_scale = 0.1
             images_seams = []
             images_seams_masks = []
             images_seams_corners = []
@@ -138,7 +135,7 @@ class MultipleTilesRenderer:
             st_time = time.time()
             # render only relevant parts, and stitch them together
             # filter only relevant tiles using rtree
-            rect_res = self.rtree.search( (from_x, from_y, to_x, to_y) )
+            rect_res = self.rtree.search((from_x, from_y, to_x, to_y))
             for t in rect_res:
                 t_img, t_start_point, t_mask = t.crop(from_x, from_y, to_x, to_y)
                 if t_img is not None and t_img.shape[0] > 0 and t_img.shape[1] > 0:
@@ -169,35 +166,26 @@ class MultipleTilesRenderer:
                 images_seams_corners = rel_points
             else:
                 for t_img, t_mask, t_rel_point in zip(images, images_masks, rel_points):
-                        t_img_seams = cv2.resize(t_img, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_LINEAR)
-                        t_mask_seams = cv2.resize(t_mask, (0, 0), fx=seam_scale, fy=seam_scale, interpolation=cv2.INTER_NEAREST)
-                        t_seams_corner = (t_rel_point * seam_scale).astype(int)
-
-                        images_seams.append(np.ascontiguousarray(t_img_seams))
-                        images_seams_masks.append(np.ascontiguousarray(t_mask_seams))
-                        images_seams_corners.append(np.ascontiguousarray(t_seams_corner))
+                    t_img_seams = cv2.resize(t_img, (0, 0), fx=seam_scale, fy=seam_scale,
+                                             interpolation=cv2.INTER_LINEAR)
+                    t_mask_seams = cv2.resize(t_mask, (0, 0), fx=seam_scale, fy=seam_scale,
+                                              interpolation=cv2.INTER_NEAREST)
+                    t_seams_corner = (t_rel_point * seam_scale).astype(int)
+                    images_seams.append(np.ascontiguousarray(t_img_seams))
+                    images_seams_masks.append(np.ascontiguousarray(t_mask_seams))
+                    images_seams_corners.append(np.ascontiguousarray(t_seams_corner))
 
             create_panorama = True
             if len(images) == 0:
                 create_panorama = False
-
+            res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=self.dtype)
             if create_panorama:
                 non_padded_res = images_composer.PyImagesComposer.compose_panorama(images, images_masks,
                                                                                    images_corners, seam_scale,
                                                                                    images_seams, images_seams_masks,
                                                                                    images_seams_corners)
-            images = None
-            images_masks = None
-            images_corners = None
-            images_seams = None
-            images_seams_masks = None
-            images_seams_corners = None
-
-            res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=self.dtype)
-            if create_panorama:
                 res[min_rel_xy[1]:min_rel_xy[1] + non_padded_res.shape[0],
                     min_rel_xy[0]:min_rel_xy[0] + non_padded_res.shape[1]] = non_padded_res
             log_controller.debug("Blending tiles time: {}".format(time.time() - st_time))
 
         return res, (from_x, from_y)
-

@@ -16,8 +16,6 @@ class TilespecAffineRenderer:
             compute_mask = False
             compute_distances = True
         elif blend_type == BlendType.MULTI_BAND_SEAM:  # MULTI_BAND_SEAM
-            compute_mask = True
-            compute_distances = False
             raise Exception('Affine MULTI_BAND_SEAM not supported at the moment')
         else:
             raise Exception('Unknown blend type')

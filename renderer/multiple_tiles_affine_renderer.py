@@ -52,6 +52,7 @@ class MultipleTilesAffineRenderer:
             return None, None
 
         # Distinguish between the different types of blending
+        res = None
         if self.blend_type == BlendType.NO_BLENDING:  # No blending
             res = np.zeros((int(round(to_y + 1 - from_y)), int(round(to_x + 1 - from_x))), dtype=np.uint8)
             # render only relevant parts, and stitch them together

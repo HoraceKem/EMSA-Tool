@@ -282,6 +282,7 @@ if __name__ == '__main__':
                                                            match_pmcc_params[i]['mfov'], align_args)
             elif overall_args["base"]["running_mode"] == 'release':
                 pool_extract = mp.Pool(overall_args["multiprocess"]["pmcc_match"])
+                log_controller.debug("Block-matching of layers: {} and {}".format(layer1, layer2))
                 for i in range(len(match_pmcc_params)):
                     pool_extract.apply_async(block_match.match_layers_pmcc_matching,
                                              (match_pmcc_params[i]['ts1'],
@@ -307,29 +308,32 @@ if __name__ == '__main__':
         sections_opt_outputs.append(out_section)
 
     print('Start optimizing 3d...')
+    log_controller.debug('Start optimizing 3d...')
     output_folder_path = os.path.join(workspace, "final_tilespecs")
     utils.create_dir(output_folder_path)
     existing_aligned_tilespecs_files = utils.ls_absolute_paths(output_folder_path)
     aligned_flag = True
     for layer in included_layers:
         aligned_tilespecs_file = os.path.join(output_folder_path, 'Sec_{}_aligned.json'.format(str(layer).zfill(4)))
-        if not aligned_tilespecs_file in existing_aligned_tilespecs_files:
+        if aligned_tilespecs_file not in existing_aligned_tilespecs_files:
             aligned_flag = False
             break
     if not aligned_flag:
-        optimize_3d.optimize_layers_elastic([ts_list_file], [pmcc_list_file], post_optimization_dir, align_args)
+        optimize_3d.optimize_layers_elastic(ts_list_file, pmcc_list_file, post_optimization_dir, align_args)
         sections_outputs = []
         for section_opt_output in sections_opt_outputs:
             out_section = os.path.join(output_folder_path, os.path.basename(section_opt_output))
             sections_outputs.append(out_section)
         # Normalize the output files to the (0, 0) coordinates
         normalize_coordinates.normalize_coordinates(post_optimization_dir, output_folder_path)
+    log_controller.debug('Optimization finished.')
     cur_tilespecs_folder_path = output_folder_path
 
     # Step 4: Render the tilespecs to images.
     print(utils.to_red('Step 4 -- Render the tilespecs to images.'))
     mip_level = overall_args["renderer"]["mip"]
-    scale = 1 / (2**mip_level)
+    log_controller.debug('Start rendering the results, mip: {}'.format(mip_level))
+    scale = 1 / (2 ** mip_level)
     render_folder_path = os.path.join(workspace, 'rendered')
     utils.create_dir(render_folder_path)
     mip_folder_path = os.path.join(render_folder_path, 'mip' + str(mip_level))

@@ -25,7 +25,8 @@ def tri_area(p1, p2, p3):
 
 
 def choose_forward(n, k, n_draws):
-    """Choose k without replacement from among N
+    """
+    Choose k without replacement from among N
     :param n: number of samples to choose from
     :param k: number of samples to choose
     :param n_draws: number of tuples to return
@@ -42,7 +43,8 @@ def choose_forward(n, k, n_draws):
 
 
 def enumerate_choices(n, k):
-    """Enumerate all the ways to choose k from n
+    """
+    Enumerate all the ways to choose k from n
     returns choices sorted lexigraphically, e.g.
     0, 1
     0, 2
@@ -92,7 +94,8 @@ def enumerate_choices(n, k):
 
 
 def choose_forward_dense(n, k, n_draws):
-    """Choose k without replacement from among N where n_draws ~ # of combos
+    """
+    Choose k without replacement from among N where n_draws ~ # of combos
     :param n: number of samples to choose from
     :param k: number of samples to choose
     :param n_draws: number of tuples to return
@@ -105,7 +108,8 @@ def choose_forward_dense(n, k, n_draws):
 
 
 def choose_forward_sparse(n, k, n_draws):
-    """Choose k without replacement from among N where n_draws << combos
+    """
+    Choose k without replacement from among N where n_draws << combos
     :param n: number of samples to choose from
     :param k: number of samples to choose
     :param n_draws: number of tuples to return
@@ -145,7 +149,8 @@ def check_model_stretch(model_matrix, max_stretch=0.25):
 def filter_triangles(m0, m1, choices,
                      max_stretch=0.25,
                      max_area=.2):
-    """Filter a set of match choices
+    """
+    Filter a set of match choices
     :param m0: set of points in one domain
     :param m1: set of matching points to m0 in another domain
     :param choices: an N x 3 array of triangles
@@ -306,12 +311,13 @@ def filter_after_ransac(candidates, model, max_trust, min_num_inliers):
 
 def filter_matches(matches, target_model_type, iterations, epsilon, min_inlier_ratio, min_num_inlier,
                    max_trust, det_delta=0.35, max_stretch=0.25):
-    """Perform a RANSAC filtering given all the matches"""
+    """
+    Perform a RANSAC filtering given all the matches
+    """
     new_model = None
     filtered_matches = None
 
     # Apply RANSAC
-    # print "Filtering {} matches".format(matches.shape[1])
     log_controller.debug("pre-ransac matches count: {}".format(matches.shape[1]))
     inliers_mask, model, _ = ransac(matches, target_model_type, iterations, epsilon, min_inlier_ratio,
                                     min_num_inlier, det_delta, max_stretch)
