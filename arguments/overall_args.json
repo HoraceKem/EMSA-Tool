@@ -5,6 +5,7 @@
 		"EM_type": "singlebeam",
         "workspace":"singlebeam_test_workspace",
 		"sample_folder":"data/singlebeam_test_dataset",
+		"folder_depth": 1,
 		"sample_name": "None",
 		"skipped_layers": "None"
 	},

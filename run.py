@@ -44,7 +44,12 @@ if __name__ == '__main__':
     time.sleep(0.1)
     tilespecs_folder_path = os.path.join(workspace, 'tilespecs')
     utils.create_dir(tilespecs_folder_path)
-    section_folder_paths = utils.ls_sub_folder_paths(overall_args["base"]["sample_folder"])
+    # Fine section folders in the sample folder
+    section_folder_paths = utils.get_section_folder_paths(overall_args["base"]["sample_folder"],
+                                                          overall_args["base"]["folder_depth"])
+    if len(section_folder_paths) == 0:
+        log_controller.error('No section folders found.')
+        raise FileNotFoundError
     included_layers = []
     skipped_layers = utils.parse_layer_range(overall_args["base"]["skipped_layers"])
     if overall_args["base"]["EM_type"] == 'singlebeam':
@@ -54,6 +59,9 @@ if __name__ == '__main__':
                                      'from the parsing result({}).'.format(utils.check_EM_type(section_folder_path)))
                 raise AssertionError
             cur_layer = import_tilespecs.parse_section_singlebeam_save(section_folder_path, tilespecs_folder_path)
+            if cur_layer in included_layers:
+                log_controller.error('Found duplicate layer index in {}.'.format(section_folder_path))
+                raise AssertionError
             if cur_layer not in skipped_layers:
                 included_layers.append(cur_layer)
     elif overall_args["base"]["EM_type"] == 'multibeam':
@@ -63,6 +71,9 @@ if __name__ == '__main__':
                                      'from the parsing result({}).'.format(utils.check_EM_type(section_folder_path)))
                 raise AssertionError
             cur_layer = import_tilespecs.parse_section_multibeam_save(section_folder_path, tilespecs_folder_path)
+            if cur_layer in included_layers:
+                log_controller.error('Found duplicate layer index in {}.'.format(section_folder_path))
+                raise AssertionError
             if cur_layer not in skipped_layers:
                 included_layers.append(cur_layer)
     print(utils.to_green('Exclude the skipped layers and get {} layers in total.'.format(len(included_layers))))
@@ -73,6 +84,9 @@ if __name__ == '__main__':
     time.sleep(0.1)
     stitch_workspace = os.path.join(workspace, '2d')
     utils.create_dir(stitch_workspace)
+    features_args = utils.load_json_file('arguments/features_args.json')
+    shutil.copy('arguments/features_args.json', os.path.join(stitch_workspace, 'features_args.json'))
+
     features_folder_path = os.path.join(stitch_workspace, 'features')
     utils.create_dir(features_folder_path)
     match_folder_path = os.path.join(stitch_workspace, 'matched_features')
@@ -99,7 +113,6 @@ if __name__ == '__main__':
         layers_data[str(layer)]["features_folder_path"] = section_features_folder_path
         tilespecs = utils.load_json_file(tilespecs_json_file)
         layers_data[str(layer)]["all_mfovs"] = set([tilespec["mfov"] for tilespec in tilespecs])
-        features_args = utils.load_json_file('arguments/features_args.json')
 
         if os.path.exists(opt_montage_json):
             log_controller.debug('Previously optimized layer: {0}, skipping all pre-computations'.format(layer))
@@ -205,7 +218,8 @@ if __name__ == '__main__':
     time.sleep(0.1)
     align_args = utils.load_json_file('arguments/align_args.json')
     align_workspace = os.path.join(workspace, '3d')
-    utils.create_dir(stitch_workspace)
+    utils.create_dir(align_workspace)
+    shutil.copy('arguments/align_args.json', os.path.join(align_workspace, 'align_args.json'))
     pre_matches_dir = os.path.join(align_workspace, "pre_matches")
     utils.create_dir(pre_matches_dir)
     matched_pmcc_dir = os.path.join(align_workspace, "matched_pmcc")

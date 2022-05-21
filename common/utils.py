@@ -99,6 +99,23 @@ def ls_sub_folder_paths(folder_path: str) -> list:
     return sub_folder_paths
 
 
+def get_section_folder_paths(folder_path: str, folder_depth: int) -> list:
+    """
+    Recursively find the section folder paths from a given folder
+    :param folder_path:
+    :param folder_depth:
+    :return:
+    """
+    if folder_depth == 0:
+        return [folder_path]
+    else:
+        res = []
+        sub_folder_paths = ls_sub_folder_paths(folder_path)
+        for sub_folder_path in sub_folder_paths:
+            res.extend(get_section_folder_paths(sub_folder_path, folder_depth - 1))
+    return res
+
+
 def read_img_dimensions(img_file_path: str) -> tuple:
     """
     Read the image dimensions(height, width) without loading it into memory.
@@ -259,7 +276,7 @@ def check_EM_type(section_folder_path: str) -> str:
     """
     if 'S_' in section_folder_path:
         return 'singlebeam'
-    elif re.search('S*R*', section_folder_path):
+    elif re.match('([0-9]+)_[S]([0-9]+)[R]([0-9]+)', os.path.basename(section_folder_path)):
         return 'multibeam'
     return 'unknown'
 
@@ -315,7 +332,6 @@ def check_tiles_num(section_folder_path: str, EM_type: str) -> int:
     if EM_type == 'singlebeam':
         tiles_num = len(ls_img_file_paths_singlebeam(section_folder_path))
     elif EM_type == 'multibeam':
-
         mfov_folder_paths = ls_sub_folder_paths(section_folder_path)
         for mfov_folder_path in mfov_folder_paths:
             tiles_num += len(ls_img_file_paths_multibeam(mfov_folder_path))
