@@ -309,10 +309,20 @@ def filter_after_ransac(candidates, model, max_trust, min_num_inliers):
     return new_model, candidates_mask, np.mean(dists)
 
 
-def filter_matches(matches, target_model_type, iterations, epsilon, min_inlier_ratio, min_num_inlier,
-                   max_trust, det_delta=0.35, max_stretch=0.25):
+def filter_matches(matches: np.ndarray, target_model_type: int, iterations: int, epsilon: float,
+                   min_inlier_ratio: float, min_num_inlier: int, max_trust: int, det_delta: float, max_stretch: float):
     """
     Perform a RANSAC filtering given all the matches
+    :param matches:
+    :param target_model_type:
+    :param iterations:
+    :param epsilon:
+    :param min_inlier_ratio:
+    :param min_num_inlier:
+    :param max_trust:
+    :param det_delta:
+    :param max_stretch:
+    :return:
     """
     new_model = None
     filtered_matches = None
@@ -329,7 +339,6 @@ def filter_matches(matches, target_model_type, iterations, epsilon, min_inlier_r
     # Apply further filtering
     if inliers_mask is not None:
         inliers = np.array([matches[0][inliers_mask], matches[1][inliers_mask]])
-        # print "Found {} good matches out of {} matches after RANSAC".format(inliers.shape[1], matches.shape[1])
         new_model, filtered_inliers_mask, mean_dists = filter_after_ransac(inliers, model, max_trust, min_num_inlier)
         filtered_matches = np.array([inliers[0][filtered_inliers_mask], inliers[1][filtered_inliers_mask]])
     if filtered_matches is None:

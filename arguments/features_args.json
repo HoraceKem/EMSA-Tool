@@ -71,6 +71,7 @@
         "min_inlier_ratio": 0.01,
         "min_num_inlier": 7,
         "max_trust": 5,
-        "del_delta": 0.35
+        "del_delta": 0.35,
+        "max_stretch": 0.25
     }
 }

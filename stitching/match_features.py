@@ -99,7 +99,8 @@ def match_and_save(features1_path: str, features2_path: str, ts1: dict, ts2: dic
                                                         parameters["ransac"]["min_inlier_ratio"],
                                                         parameters["ransac"]["min_num_inlier"],
                                                         parameters["ransac"]["max_trust"],
-                                                        parameters["ransac"]["del_delta"])
+                                                        parameters["ransac"]["del_delta"],
+                                                        parameters["ransac"]["max_stretch"])
         model_json = []
         if model is None:
             filtered_matches = [[], []]

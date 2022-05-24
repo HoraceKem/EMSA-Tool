@@ -312,8 +312,6 @@ class SimilarityModel(AbstractAffineModel):
         qc = np.mean(y, axis=0)
 
         delta_c = pc - qc
-        # dx = pc[0] - qc[0]
-        # dy = pc[1] - qc[1]
 
         scosd = 0.0
         ssind = 0.0
@@ -327,7 +325,6 @@ class SimilarityModel(AbstractAffineModel):
             scosd += xy1[0] * xy2[0] + xy1[1] * xy2[1]
             norm += xy1[0] ** 2 + xy1[1] ** 2
         if norm < 0.0001:
-            # print "normalization may be invalid, skipping fitting"
             return False
         scosd /= norm
         ssind /= norm
@@ -386,7 +383,6 @@ class AffineModel(AbstractAffineModel):
     def to_modelspec(self):
         return {
             "className": self.class_name,
-            # keeping it in the Fiji model format
             "dataString": "{}".format(' '.join([str(float(x)) for x in self.m[:2].T.flatten()]))
         }
 
